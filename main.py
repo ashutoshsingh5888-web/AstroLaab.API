@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+import os
 import traceback
 
 # Engine imports
@@ -17,7 +17,7 @@ app = FastAPI(
 )
 
 # -----------------------------
-# CORS (so WordPress can call it)
+# CORS
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +28,21 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Health Check
+# Load API Key From Environment
+# -----------------------------
+API_KEY = os.getenv("ASTROLAAB_API_KEY")
+
+
+def verify_api_key(x_api_key: str = Header(None)):
+    if API_KEY is None:
+        return  # allow during dev if not set
+
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+# -----------------------------
+# Health Endpoint (Public)
 # -----------------------------
 @app.get("/health")
 def health():
@@ -41,7 +55,7 @@ def health():
 
 
 # -----------------------------
-# Helper: IST → UTC Conversion
+# IST → UTC Conversion
 # -----------------------------
 def ist_to_utc(year, month, day, hour, minute):
     ist_time = datetime(year, month, day, hour, minute)
@@ -50,7 +64,7 @@ def ist_to_utc(year, month, day, hour, minute):
 
 
 # -----------------------------
-# Main Chart Endpoint
+# Protected Chart Endpoint
 # -----------------------------
 @app.get("/chart")
 def generate_chart(
@@ -61,13 +75,16 @@ def generate_chart(
     minute: int = Query(..., ge=0, le=59),
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
-    chart_style: str = Query("north", pattern="^(north|south)$")
+    chart_style: str = Query("north", pattern="^(north|south)$"),
+    x_api_key: str = Header(None)
 ):
+    verify_api_key(x_api_key)
+
     try:
         # Convert IST → UTC
         utc_time = ist_to_utc(year, month, day, hour, minute)
 
-        # Core Chart Calculation
+        # Core Chart
         chart_data = calculate_chart(
             utc_time.year,
             utc_time.month,
@@ -85,13 +102,13 @@ def generate_chart(
             utc_time.hour + utc_time.minute / 60
         )
 
-        # Vimshottari Dasha
+        # Dasha
         dasha_data = calculate_vimshottari_dasha(
-         chart_data["Planets"]["Moon"]["longitude"],
-        datetime(year, month, day)
+            chart_data["Planets"]["Moon"]["longitude"],
+            datetime(year, month, day)
         )
 
-        # Chart Layout
+        # Layout
         layout = generate_chart_layout(
             chart_data,
             chart_style
@@ -111,7 +128,7 @@ def generate_chart(
             "Chart_Layout": layout
         }
 
-    except Exception as e:
+    except Exception:
         print(traceback.format_exc())
         raise HTTPException(
             status_code=500,
