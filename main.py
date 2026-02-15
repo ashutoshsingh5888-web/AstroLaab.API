@@ -1,9 +1,14 @@
-from fastapi import FastAPI, Query, HTTPException, Header, Depends
+from fastapi import FastAPI, Query, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 import os
 import traceback
 import secrets
+
+# SlowAPI imports
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
 
 # Engine imports
 from engine.astronomy import calculate_chart
@@ -11,6 +16,9 @@ from engine.dasha import calculate_vimshottari_dasha
 from engine.panchang import calculate_panchang
 from engine.charts import generate_chart_layout
 
+# -----------------------------
+# App Initialization
+# -----------------------------
 app = FastAPI(
     title="AstroLaab Engine API",
     version="1.0.0",
@@ -18,11 +26,18 @@ app = FastAPI(
 )
 
 # -----------------------------
+# Rate Limiter Setup
+# -----------------------------
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+# -----------------------------
 # CORS
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Later restrict to your domain
+    allow_origins=["*"],  # Restrict later to your domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,7 +68,6 @@ def verify_api_key(x_api_key: str = Header(None)):
             detail="Invalid API key"
         )
 
-
 # -----------------------------
 # Health Endpoint (Public)
 # -----------------------------
@@ -66,7 +80,6 @@ def health():
         "timezone_input": "IST"
     }
 
-
 # -----------------------------
 # IST → UTC Conversion
 # -----------------------------
@@ -75,12 +88,13 @@ def ist_to_utc(year, month, day, hour, minute):
     utc_time = ist_time - timedelta(hours=5, minutes=30)
     return utc_time
 
-
 # -----------------------------
 # Protected Chart Endpoint
 # -----------------------------
+@limiter.limit("20/minute")
 @app.get("/chart")
 def generate_chart(
+    request: Request,  # REQUIRED for SlowAPI
     year: int = Query(..., ge=1900, le=2100),
     month: int = Query(..., ge=1, le=12),
     day: int = Query(..., ge=1, le=31),
@@ -89,7 +103,7 @@ def generate_chart(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
     chart_style: str = Query("north", pattern="^(north|south)$"),
-    _: None = Depends(verify_api_key)  # Add as dependency
+    _: None = Depends(verify_api_key)
 ):
     try:
         # Convert IST → UTC
