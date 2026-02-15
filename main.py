@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 import os
 import traceback
+import secrets
 
 # Engine imports
 from engine.astronomy import calculate_chart
@@ -34,22 +35,21 @@ API_KEY = os.getenv("ASTROLAAB_API_KEY")
 
 
 def verify_api_key(x_api_key: str = Header(None)):
-    """Verify API key from request header"""
     if API_KEY is None:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="API key not configured on server"
         )
-    
+
     if x_api_key is None:
         raise HTTPException(
-            status_code=401, 
+            status_code=401,
             detail="API key required - include X-Api-Key header"
         )
-    
-    if x_api_key != API_KEY:
+
+    if not secrets.compare_digest(x_api_key, API_KEY):
         raise HTTPException(
-            status_code=401, 
+            status_code=401,
             detail="Invalid API key"
         )
 
