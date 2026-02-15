@@ -68,8 +68,8 @@ app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://yourdomain.com",
-        "https://www.yourdomain.com"
+        "https://astrolaab.com",
+        "https://www.astrolaab.com"
     ],
     allow_credentials=True,
     allow_methods=["POST"],
