@@ -54,62 +54,51 @@ app.add_middleware(SlowAPIMiddleware)
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict later to your domain
+    allow_origins=["*"],  # Restrict later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -----------------------------
-# Load API Key From Environment
+# Load API Key
 # -----------------------------
 API_KEY = os.getenv("ASTROLAAB_API_KEY")
 
-
 def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY is None:
-        raise HTTPException(
-            status_code=500,
-            detail="API key not configured on server"
-        )
+        raise HTTPException(status_code=500, detail="API key not configured")
 
     if x_api_key is None:
-        raise HTTPException(
-            status_code=401,
-            detail="API key required - include X-Api-Key header"
-        )
+        raise HTTPException(status_code=401, detail="API key required")
 
     if not secrets.compare_digest(x_api_key, API_KEY):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid API key"
-        )
-
-# -----------------------------
-# Health Endpoint (Public)
-# -----------------------------
-@app.get("/health")
-def health():
-    return {
-        "status": "running",
-        "engine": "AstroLaab",
-        "ayanamsa": "Lahiri",
-        "timezone_input": "IST"
-    }
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
 # -----------------------------
 # IST → UTC Conversion
 # -----------------------------
 def ist_to_utc(year, month, day, hour, minute):
     ist_time = datetime(year, month, day, hour, minute)
-    utc_time = ist_time - timedelta(hours=5, minutes=30)
-    return utc_time
+    return ist_time - timedelta(hours=5, minutes=30)
 
-# -----------------------------
-# Protected Chart Endpoint
-# -----------------------------
+# ====================================================
+# ================= API V1 ROUTES ====================
+# ====================================================
+
+# Health
+@app.get("/api/v1/health")
+def health():
+    return {
+        "status": "running",
+        "engine": "AstroLaab",
+        "version": "v1",
+        "ayanamsa": "Lahiri"
+    }
+
+# Chart
 @limiter.limit("20/minute")
-@app.get("/chart")
+@app.get("/api/v1/chart")
 def generate_chart(
     request: Request,
     year: int = Query(..., ge=1900, le=2100),
@@ -123,10 +112,8 @@ def generate_chart(
     _: None = Depends(verify_api_key)
 ):
     try:
-        # Convert IST → UTC
         utc_time = ist_to_utc(year, month, day, hour, minute)
 
-        # Core Chart
         chart_data = calculate_chart(
             utc_time.year,
             utc_time.month,
@@ -136,7 +123,6 @@ def generate_chart(
             longitude
         )
 
-        # Panchang
         panchang_data = calculate_panchang(
             utc_time.year,
             utc_time.month,
@@ -144,20 +130,16 @@ def generate_chart(
             utc_time.hour + utc_time.minute / 60
         )
 
-        # Dasha
         dasha_data = calculate_vimshottari_dasha(
             chart_data["Planets"]["Moon"]["longitude"],
             datetime(year, month, day)
         )
 
-        # Layout
-        layout = generate_chart_layout(
-            chart_data,
-            chart_style
-        )
+        layout = generate_chart_layout(chart_data, chart_style)
 
         return {
             "meta": {
+                "api_version": "v1",
                 "input_timezone": "IST",
                 "calculated_in_utc": True,
                 "ayanamsa": "Lahiri"
@@ -172,7 +154,4 @@ def generate_chart(
 
     except Exception:
         print(traceback.format_exc())
-        raise HTTPException(
-            status_code=500,
-            detail="Internal calculation error"
-        )
+        raise HTTPException(status_code=500, detail="Internal calculation error")
