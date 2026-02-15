@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, Header
+from fastapi import FastAPI, Query, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 import os
@@ -34,11 +34,24 @@ API_KEY = os.getenv("ASTROLAAB_API_KEY")
 
 
 def verify_api_key(x_api_key: str = Header(None)):
+    """Verify API key from request header"""
     if API_KEY is None:
-        return  # allow during dev if not set
-
+        raise HTTPException(
+            status_code=500, 
+            detail="API key not configured on server"
+        )
+    
+    if x_api_key is None:
+        raise HTTPException(
+            status_code=401, 
+            detail="API key required - include X-Api-Key header"
+        )
+    
     if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid API key"
+        )
 
 
 # -----------------------------
@@ -76,10 +89,8 @@ def generate_chart(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
     chart_style: str = Query("north", pattern="^(north|south)$"),
-    x_api_key: str = Header(None)
+    _: None = Depends(verify_api_key)  # Add as dependency
 ):
-    verify_api_key(x_api_key)
-
     try:
         # Convert IST → UTC
         utc_time = ist_to_utc(year, month, day, hour, minute)
