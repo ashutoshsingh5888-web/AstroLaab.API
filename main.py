@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Query, HTTPException, Header, Depends, Request
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import os
 import traceback
 import secrets
+import time
+import logging
 
 # SlowAPI imports
 from slowapi import Limiter
@@ -16,14 +19,24 @@ from engine.dasha import calculate_vimshottari_dasha
 from engine.panchang import calculate_panchang
 from engine.charts import generate_chart_layout
 
-# -----------------------------
+# ====================================================
 # Environment Detection
-# -----------------------------
+# ====================================================
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# -----------------------------
+# ====================================================
+# Logging Setup
+# ====================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
+# ====================================================
 # App Initialization
-# -----------------------------
+# ====================================================
 if ENVIRONMENT == "production":
     app = FastAPI(
         title="AstroLaab Engine API",
@@ -39,9 +52,9 @@ else:
         description="Indian Vedic Astrology Engine - Lahiri Ayanamsa"
     )
 
-# -----------------------------
-# Rate Limiter Setup (Per API Key)
-# -----------------------------
+# ====================================================
+# Rate Limiter (Per API Key)
+# ====================================================
 def api_key_identifier(request: Request):
     return request.headers.get("x-api-key") or get_remote_address(request)
 
@@ -49,20 +62,23 @@ limiter = Limiter(key_func=api_key_identifier)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
-# -----------------------------
-# CORS
-# -----------------------------
+# ====================================================
+# CORS (Restrict to WordPress Domain)
+# ====================================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict later
+    allow_origins=[
+        "https://yourdomain.com",
+        "https://www.yourdomain.com"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["POST"],
     allow_headers=["*"],
 )
 
-# -----------------------------
-# Load API Key
-# -----------------------------
+# ====================================================
+# API Key
+# ====================================================
 API_KEY = os.getenv("ASTROLAAB_API_KEY")
 
 def verify_api_key(x_api_key: str = Header(None)):
@@ -75,12 +91,44 @@ def verify_api_key(x_api_key: str = Header(None)):
     if not secrets.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
-# -----------------------------
-# IST → UTC Conversion
-# -----------------------------
+# ====================================================
+# Request Logging Middleware
+# ====================================================
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    process_time = round((time.time() - start_time) * 1000, 2)
+
+    logger.info(
+        f"{request.method} {request.url.path} | "
+        f"Status: {response.status_code} | "
+        f"Time: {process_time}ms"
+    )
+
+    return response
+
+# ====================================================
+# Utility: IST → UTC
+# ====================================================
 def ist_to_utc(year, month, day, hour, minute):
     ist_time = datetime(year, month, day, hour, minute)
     return ist_time - timedelta(hours=5, minutes=30)
+
+# ====================================================
+# Pydantic Model
+# ====================================================
+class ChartRequest(BaseModel):
+    year: int = Field(..., ge=1900, le=2100)
+    month: int = Field(..., ge=1, le=12)
+    day: int = Field(..., ge=1, le=31)
+    hour: int = Field(..., ge=0, le=23)
+    minute: int = Field(..., ge=0, le=59)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    chart_style: str = Field("north", pattern="^(north|south)$")
 
 # ====================================================
 # ================= API V1 ROUTES ====================
@@ -96,31 +144,30 @@ def health():
         "ayanamsa": "Lahiri"
     }
 
-# Chart
+# Chart (POST)
 @limiter.limit("20/minute")
-@app.get("/api/v1/chart")
+@app.post("/api/v1/chart")
 def generate_chart(
     request: Request,
-    year: int = Query(..., ge=1900, le=2100),
-    month: int = Query(..., ge=1, le=12),
-    day: int = Query(..., ge=1, le=31),
-    hour: int = Query(..., ge=0, le=23),
-    minute: int = Query(..., ge=0, le=59),
-    latitude: float = Query(..., ge=-90, le=90),
-    longitude: float = Query(..., ge=-180, le=180),
-    chart_style: str = Query("north", pattern="^(north|south)$"),
+    payload: ChartRequest,
     _: None = Depends(verify_api_key)
 ):
     try:
-        utc_time = ist_to_utc(year, month, day, hour, minute)
+        utc_time = ist_to_utc(
+            payload.year,
+            payload.month,
+            payload.day,
+            payload.hour,
+            payload.minute
+        )
 
         chart_data = calculate_chart(
             utc_time.year,
             utc_time.month,
             utc_time.day,
             utc_time.hour + utc_time.minute / 60,
-            latitude,
-            longitude
+            payload.latitude,
+            payload.longitude
         )
 
         panchang_data = calculate_panchang(
@@ -132,10 +179,10 @@ def generate_chart(
 
         dasha_data = calculate_vimshottari_dasha(
             chart_data["Planets"]["Moon"]["longitude"],
-            datetime(year, month, day)
+            datetime(payload.year, payload.month, payload.day)
         )
 
-        layout = generate_chart_layout(chart_data, chart_style)
+        layout = generate_chart_layout(chart_data, payload.chart_style)
 
         return {
             "meta": {
@@ -153,5 +200,5 @@ def generate_chart(
         }
 
     except Exception:
-        print(traceback.format_exc())
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="Internal calculation error")
