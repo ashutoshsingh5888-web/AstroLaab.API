@@ -17,18 +17,35 @@ from engine.panchang import calculate_panchang
 from engine.charts import generate_chart_layout
 
 # -----------------------------
-# App Initialization
+# Environment Detection
 # -----------------------------
-app = FastAPI(
-    title="AstroLaab Engine API",
-    version="1.0.0",
-    description="Indian Vedic Astrology Engine - Lahiri Ayanamsa"
-)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # -----------------------------
-# Rate Limiter Setup
+# App Initialization
 # -----------------------------
-limiter = Limiter(key_func=get_remote_address)
+if ENVIRONMENT == "production":
+    app = FastAPI(
+        title="AstroLaab Engine API",
+        version="1.0.0",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None
+    )
+else:
+    app = FastAPI(
+        title="AstroLaab Engine API",
+        version="1.0.0",
+        description="Indian Vedic Astrology Engine - Lahiri Ayanamsa"
+    )
+
+# -----------------------------
+# Rate Limiter Setup (Per API Key)
+# -----------------------------
+def api_key_identifier(request: Request):
+    return request.headers.get("x-api-key") or get_remote_address(request)
+
+limiter = Limiter(key_func=api_key_identifier)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
@@ -94,7 +111,7 @@ def ist_to_utc(year, month, day, hour, minute):
 @limiter.limit("20/minute")
 @app.get("/chart")
 def generate_chart(
-    request: Request,  # REQUIRED for SlowAPI
+    request: Request,
     year: int = Query(..., ge=1900, le=2100),
     month: int = Query(..., ge=1, le=12),
     day: int = Query(..., ge=1, le=31),
