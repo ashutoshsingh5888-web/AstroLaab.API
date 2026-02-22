@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import traceback
 import secrets
@@ -31,7 +31,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s"
 )
-
 logger = logging.getLogger(__name__)
 
 # ====================================================
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 if ENVIRONMENT == "production":
     app = FastAPI(
         title="AstroLaab Engine API",
-        version="1.0.0",
+        version="1.0.1",
         docs_url=None,
         redoc_url=None,
         openapi_url=None
@@ -48,7 +47,7 @@ if ENVIRONMENT == "production":
 else:
     app = FastAPI(
         title="AstroLaab Engine API",
-        version="1.0.0",
+        version="1.0.1",
         description="Indian Vedic Astrology Engine - Lahiri Ayanamsa"
     )
 
@@ -63,7 +62,7 @@ app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
 # ====================================================
-# CORS (Restrict to WordPress Domain)
+# CORS
 # ====================================================
 app.add_middleware(
     CORSMiddleware,
@@ -84,10 +83,8 @@ API_KEY = os.getenv("ASTROLAAB_API_KEY")
 def verify_api_key(x_api_key: str = Header(None)):
     if API_KEY is None:
         raise HTTPException(status_code=500, detail="API key not configured")
-
     if x_api_key is None:
         raise HTTPException(status_code=401, detail="API key required")
-
     if not secrets.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
@@ -97,9 +94,7 @@ def verify_api_key(x_api_key: str = Header(None)):
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
-
     response = await call_next(request)
-
     process_time = round((time.time() - start_time) * 1000, 2)
 
     logger.info(
@@ -107,15 +102,7 @@ async def log_requests(request: Request, call_next):
         f"Status: {response.status_code} | "
         f"Time: {process_time}ms"
     )
-
     return response
-
-# ====================================================
-# Utility: IST → UTC
-# ====================================================
-def ist_to_utc(year, month, day, hour, minute):
-    ist_time = datetime(year, month, day, hour, minute)
-    return ist_time - timedelta(hours=5, minutes=30)
 
 # ====================================================
 # Pydantic Model
@@ -131,20 +118,20 @@ class ChartRequest(BaseModel):
     chart_style: str = Field("north", pattern="^(north|south)$")
 
 # ====================================================
-# ================= API V1 ROUTES ====================
-# ====================================================
-
 # Health
+# ====================================================
 @app.get("/api/v1/health")
 def health():
     return {
         "status": "running",
         "engine": "AstroLaab",
-        "version": "v1",
+        "version": "v1.0.1",
         "ayanamsa": "Lahiri"
     }
 
-# Chart (POST)
+# ====================================================
+# Chart Endpoint (FIXED)
+# ====================================================
 @limiter.limit("20/minute")
 @app.post("/api/v1/chart")
 def generate_chart(
@@ -153,28 +140,23 @@ def generate_chart(
     _: None = Depends(verify_api_key)
 ):
     try:
-        utc_time = ist_to_utc(
+        # ✅ USE LOCAL IST TIME DIRECTLY (NO UTC CONVERSION)
+        decimal_hour = payload.hour + payload.minute / 60
+
+        chart_data = calculate_chart(
             payload.year,
             payload.month,
             payload.day,
-            payload.hour,
-            payload.minute
-        )
-
-        chart_data = calculate_chart(
-            utc_time.year,
-            utc_time.month,
-            utc_time.day,
-            utc_time.hour + utc_time.minute / 60,
+            decimal_hour,
             payload.latitude,
             payload.longitude
         )
 
         panchang_data = calculate_panchang(
-            utc_time.year,
-            utc_time.month,
-            utc_time.day,
-            utc_time.hour + utc_time.minute / 60
+            payload.year,
+            payload.month,
+            payload.day,
+            decimal_hour
         )
 
         dasha_data = calculate_vimshottari_dasha(
@@ -186,9 +168,9 @@ def generate_chart(
 
         return {
             "meta": {
-                "api_version": "v1",
+                "api_version": "v1.0.1",
                 "input_timezone": "IST",
-                "calculated_in_utc": True,
+                "timezone_conversion": "none",
                 "ayanamsa": "Lahiri"
             },
             "Ascendant": chart_data["Ascendant"],
