@@ -1,6 +1,10 @@
 import swisseph as swe
 
-# Use Lahiri Ayanamsa
+# ----------------------------------------------------
+# Swiss Ephemeris Configuration
+# ----------------------------------------------------
+
+# Use Lahiri Ayanamsa (SIDEREAL)
 swe.set_sid_mode(swe.SIDM_LAHIRI)
 
 SIGNS = [
@@ -20,32 +24,41 @@ PLANETS = {
     "Rahu": swe.TRUE_NODE
 }
 
+# ----------------------------------------------------
+# Helpers
+# ----------------------------------------------------
 
 def zodiac_from_longitude(longitude):
     sign_index = int(longitude // 30)
     degree = longitude % 30
     return SIGNS[sign_index], round(degree, 2)
 
+# ----------------------------------------------------
+# Main Chart Calculator
+# ----------------------------------------------------
 
 def calculate_chart(year, month, day, hour, latitude, longitude):
     """
     Main astrology engine function.
-    Returns full chart data.
+    All calculations are SIDEREAL (Lahiri).
     """
 
-    # Set location
+    # Set observer location
     swe.set_topo(longitude, latitude, 0)
 
-    # Convert to Julian Day
+    # Julian Day (UT)
     jd = swe.julday(year, month, day, hour)
 
     planets_data = {}
 
+    # -----------------------------
+    # Planetary Positions (Sidereal)
+    # -----------------------------
     for name, planet_id in PLANETS.items():
-        position = swe.calc_ut(jd, planet_id)
+        position = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL)
         longitude_value = position[0][0]
 
-        # Ketu = opposite Rahu
+        # Store Rahu for Ketu calculation
         if name == "Rahu":
             rahu_long = longitude_value
             ketu_long = (rahu_long + 180) % 360
@@ -58,7 +71,9 @@ def calculate_chart(year, month, day, hour, latitude, longitude):
             "longitude": round(longitude_value, 4)
         }
 
-    # Add Ketu manually
+    # -----------------------------
+    # Ketu (Opposite Rahu)
+    # -----------------------------
     ketu_sign, ketu_degree = zodiac_from_longitude(ketu_long)
     planets_data["Ketu"] = {
         "sign": ketu_sign,
@@ -66,15 +81,24 @@ def calculate_chart(year, month, day, hour, latitude, longitude):
         "longitude": round(ketu_long, 4)
     }
 
-    # Ascendant
-    ascendant = swe.houses(jd, latitude, longitude)[0][0]
-    asc_sign, asc_degree = zodiac_from_longitude(ascendant)
+    # -----------------------------
+    # Ascendant (SIDEREAL — FIXED)
+    # -----------------------------
+    houses = swe.houses_ex(
+        jd,
+        swe.FLG_SIDEREAL,
+        latitude,
+        longitude
+    )
+
+    ascendant_longitude = houses[0][0]
+    asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
 
     return {
         "Ascendant": {
             "sign": asc_sign,
             "degree": asc_degree,
-            "longitude": round(ascendant, 4)
+            "longitude": round(ascendant_longitude, 4)
         },
         "Planets": planets_data
     }
