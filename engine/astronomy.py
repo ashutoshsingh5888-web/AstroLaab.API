@@ -82,17 +82,16 @@ def calculate_chart(year, month, day, hour, latitude, longitude):
     }
 
     # -----------------------------
-    # Ascendant (SIDEREAL — FIXED)
-    # -----------------------------
-    houses = swe.houses_ex(
-        jd,
-        swe.FLG_SIDEREAL,
-        latitude,
-        longitude
-    )
+    # Ascendant (SIDEREAL — FINAL FIX)
+houses = swe.houses_ex(
+    jd,
+    swe.FLG_SIDEREAL,
+    latitude,
+    longitude
+)
 
-    ascendant_longitude = houses[0][0]
-    asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
+ascendant_longitude = houses[1][0]   # <-- THIS IS ASC
+asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
 
     return {
         "Ascendant": {
