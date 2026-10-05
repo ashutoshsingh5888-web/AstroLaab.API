@@ -257,7 +257,7 @@ def parse_drik_expected(raw: str) -> dict:
         row = re.search(
             rf"(?:Moon|Chandra)[^0-9]{{0,120}}"
             rf"(\\d{{1,2}})\\s*[°:]\\s*({s_names})"
-            rf'[^0-9]{{0,80}}(\\d{{1,2}})\\s*[′\\']\\s*(\\d{{1,2}})\\s*[″"]',
+            rf'[^0-9]{{0,80}}(\\d{{1,2}})\\D+(\\d{{1,2}})\\D+(\\d{{1,2}})',
             line,
             re.I,
         )
