@@ -145,6 +145,24 @@ const SELF_TESTS:any[] = [
   {id:"europe-london",date:"1975-03-30",time:"09:15:00",timeZone:"Europe/London",place:{name:"London",country:"United Kingdom",latitude:51.5074,longitude:-0.1278}}
 ];
 
+async function runAccuracyTest(){
+  const refs=[["india-mumbai-1990",271.893544051776,30.549786151397,14.30228830604,348.949947571366,324.51521013584,75.792250925741,271.525742533984,147.476635359085,23.722545538704],["india-delhi-2024",135.007046782124,256.124096960978,238.048034754996,218.75082075704,243.318327838058,11.392502561866,309.076716276488,343.117367529728,24.192354384884],["india-kolkata-2000",190.661714043831,255.772414588956,246.90270530443,216.831315976019,303.544530853777,1.371012139825,16.557471719762,170.526965333713,23.857064466943],["usa-new-york-dst",29.082584416667,89.471854636869,71.839283774682,47.981594425069,345.994042498663,268.026803473999,274.890472079797,163.760400304612,24.143985233202],["australia-sydney-dst",294.129074225075,270.944777402255,286.42375578863,253.861840030077,9.694837990703,281.894999792078,279.112896020403,345.062264464639,24.150998997444],["equator-singapore",178.172808133162,65.47630399918,56.337486892721,103.648992321759,133.316969679859,337.723689488829,154.203432545503,57.654607050423,24.00332196841],["southern-hemisphere-sao-paulo",84.745868640642,197.719852547448,220.250678424072,179.135623493973,160.874130154226,285.061978176026,214.790808698504,10.640387431991,23.659310836502],["europe-london",205.03285368839,345.493453347762,327.495363133133,19.092318641934,297.000175213149,339.302494777344,78.665895000308,49.838387922311,23.51125830612]];
+  const names=["Moon","Sun","Mercury","Venus","Mars","Jupiter","Saturn"];
+  const results:any[]=[];
+  const arcsec=(a:number,b:number)=>{const d=Math.abs(norm(a-b));return (d>180?360-d:d)*3600;};
+  for(const t of refs){
+    try{
+      const out=calculate({date:t[0]==="india-mumbai-1990"?"1990-05-15":t[0]==="india-delhi-2024"?"2024-01-01":t[0]==="india-kolkata-2000"?"2000-01-01":t[0]==="usa-new-york-dst"?"2020-07-15":t[0]==="australia-sydney-dst"?"2021-01-15":t[0]==="equator-singapore"?"2010-06-21":t[0]==="southern-hemisphere-sao-paulo"?"1985-11-03":"1975-03-30",time:t[0]==="india-mumbai-1990"?"14:30:00":t[0]==="india-delhi-2024"?"12:00:00":t[0]==="india-kolkata-2000"?"00:00:00":t[0]==="usa-new-york-dst"?"12:00:00":t[0]==="australia-sydney-dst"?"12:00:00":t[0]==="equator-singapore"?"06:30:00":t[0]==="southern-hemisphere-sao-paulo"?"18:45:30":"09:15:00",timeZone:t[0].includes("mumbai")||t[0].includes("delhi")||t[0].includes("kolkata")?"Asia/Kolkata":t[0].includes("new-york")?"America/New_York":t[0].includes("sydney")?"Australia/Sydney":t[0].includes("singapore")?"Asia/Singapore":t[0].includes("sao-paulo")?"America/Sao_Paulo":"Europe/London",place:{latitude:0,longitude:0},houseSystem:"W"});
+      const errs:any={};
+      names.forEach((n,i)=>{const p=out.planets.find((x:any)=>x.name===n); errs[n]=p?arcsec(p.longitude,t[i+1]):null;});
+      const ascLon=(out.houses.ascendant.index-1)*30+out.houses.ascendant.degreeInSign;
+      errs.Ascendant=arcsec(ascLon,t[8]); errs.Ayanamsha=Math.abs(out.ayanamsha.degrees-t[9])*3600;
+      results.push({id:t[0],errorsArcsec:errs,maxArcsec:Math.max(...Object.values(errs).map(Number)),status:Math.max(...Object.values(errs).map(Number))<0.1?"PASS":"REVIEW"});
+    }catch(e){results.push({id:t[0],status:"ERROR",error:e instanceof Error?e.message:String(e)});}
+  }
+  return {ok:results.every(x=>x.status==="PASS"),thresholdArcsec:0.1,tests:results};
+}
+
 function runSelfTest(){
   const results:any[]=[];
   for(const t of SELF_TESTS){
@@ -194,6 +212,7 @@ export default {async fetch(req:Request){
     if(req.method==="GET"&&u.pathname==="/health") return json({ok:true,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),ayanamsha:"Lahiri (Chitrapaksha)"},200,req);
     if(req.method==="GET"&&u.pathname==="/location") return locations(u.searchParams.get("q")??"",req);
     if(req.method==="GET"&&u.pathname==="/self-test") return json(runSelfTest(),200,req);
+    if(req.method==="GET"&&u.pathname==="/accuracy-test") return json(await runAccuracyTest(),200,req);
     if(req.method==="POST"&&(u.pathname==="/moon-sign"||u.pathname==="/birth-chart")){
       const body=await req.json();
       if(!body||typeof body!=="object") return err("invalid JSON body",req);
