@@ -239,6 +239,79 @@ function runSelfTest(){
   return {ok:passed===results.length,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",tests:results,passed,failed:results.length-passed,total:results.length};
 }
 
+
+function runForensicTest(){
+  // Diagnostic only. This intentionally compares the same embedded Swiss
+  // Ephemeris engine through the wrapper and raw UT API. It does not modify
+  // production calculation behavior.
+  const input={
+    date:"1990-05-15",
+    time:"14:30:00",
+    timeZone:"Asia/Kolkata",
+    place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},
+    houseSystem:"W"
+  };
+  const u=localToUtc(input.date,input.time,input.timeZone);
+  const x=u.date;
+  const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
+  const jdUT=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
+  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;
+  const deltaTSeconds=deltaT(decimalYear);
+  const jdTT=jdUT+deltaTSeconds/86400;
+  const ayTT=Number(get_ayanamsha(1,jdTT));
+  const ayUT=Number(get_ayanamsha(1,jdUT));
+  const wrapper=calculate_planets(jdTT,1) as any[];
+  const wrapperMoon=wrapper.find((p:any)=>Number(p.id)===1);
+  if(!wrapperMoon) throw new Error("Moon position unavailable in wrapper calculation");
+
+  const flags=2|256; // SEFLG_SWIEPH | SEFLG_SPEED
+  const rawUT=calc_ut(jdUT,1,flags) as any;
+  const rawUTTropical=norm(Number(rawUT.longitude));
+  const wrapperTropical=norm(Number(wrapperMoon.longitude)+ayTT);
+
+  return {
+    ok:true,
+    service:"astrolaab-moon-sign",
+    purpose:"ephemeris-time-scale forensic comparison",
+    note:"Diagnostic endpoint only; no values here are used as production goldens.",
+    engine:"Swiss Ephemeris",
+    swissephVersion:get_swisseph_version(),
+    input,
+    time:{
+      utc:x.toISOString(),
+      utcOffsetMinutes:u.offsetMinutes,
+      julianDayUT:jdUT,
+      julianDayTT:jdTT,
+      deltaTSeconds
+    },
+    ayanamsha:{
+      mode:1,
+      lahiriTT:ayTT,
+      lahiriAtUTInput:ayUT,
+      differenceArcsec:Math.abs(ayTT-ayUT)*3600
+    },
+    moon:{
+      wrapperSiderealTT:wrapperMoon.longitude,
+      rawCalcUTTropical:rawUTTropical,
+      rawCalcUTSiderealUsingTTAyanamsha:norm(rawUTTropical-ayTT),
+      rawCalcUTSiderealUsingUTAyanamsha:norm(rawUTTropical-ayUT),
+      wrapperTropicalReconstructed:wrapperTropical,
+      wrapperVsRawUTTropicalArcsec:(Math.abs(wrapperTropical-rawUTTropical)>180?360-Math.abs(wrapperTropical-rawUTTropical):Math.abs(wrapperTropical-rawUTTropical))*3600,
+      currentExpectedGolden:271.8935490396424,
+      currentGoldenDifferenceArcsec:(Math.abs(wrapperMoon.longitude-271.8935490396424)>180?360-Math.abs(wrapperMoon.longitude-271.8935490396424):Math.abs(wrapperMoon.longitude-271.8935490396424))*3600,
+      oldExpectedGolden:271.888653616292,
+      oldGoldenDifferenceArcsec:(Math.abs(wrapperMoon.longitude-271.888653616292)>180?360-Math.abs(wrapperMoon.longitude-271.888653616292):Math.abs(wrapperMoon.longitude-271.888653616292))*3600,
+      oldPathDifferenceArcsec:(Math.abs(norm(rawUTTropical-ayUT)-271.888653616292)>180?360-Math.abs(norm(rawUTTropical-ayUT)-271.888653616292):Math.abs(norm(rawUTTropical-ayUT)-271.888653616292))*3600
+    },
+    flags:{
+      value:flags,
+      ephemeris:"SWIEPH",
+      speed:true,
+      sidereal:"wrapper subtracts Lahiri; raw calc_ut call is tropical"
+    }
+  };
+}
+
 async function locations(q:string,req:Request){
   if(q.trim().length<2||q.length>100) return err("location query must be 2–100 characters",req);
   const u=new URL("https://photon.komoot.io/api/"); u.searchParams.set("q",q.trim());u.searchParams.set("limit","6");u.searchParams.set("lang","en");
@@ -259,6 +332,7 @@ export default {async fetch(req:Request){
     if(req.method==="GET"&&u.pathname==="/location") return locations(u.searchParams.get("q")??"",req);
     if(req.method==="GET"&&u.pathname==="/self-test") return json(runSelfTest(),200,req);
     if(req.method==="GET"&&u.pathname==="/accuracy-test") return json(await runAccuracyTest(),200,req);
+    if(req.method==="GET"&&u.pathname==="/forensic-test") return json(runForensicTest(),200,req);
     if(req.method==="POST"&&(u.pathname==="/moon-sign"||u.pathname==="/birth-chart")){
       const body=await req.json();
       if(!body||typeof body!=="object") return err("invalid JSON body",req);
