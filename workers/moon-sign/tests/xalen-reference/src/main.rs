@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use xalen_ephemeris::ayanamsa::Ayanamsa;
-use xalen_ephemeris::ephem::{Almanac, Body, De440Provider};
+use xalen_ephemeris::ephem::{Almanac, Body, De440Provider, De440Reader};
 use xalen_ephemeris::time::{DeltaTModel, JdUT1};
 
 #[derive(Debug, Deserialize)]
@@ -24,12 +24,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     let input = arg_value(&args, "--input")?;
     let output = arg_value(&args, "--output")?;
+    let kernel = arg_value(&args, "--kernel")?;
 
     let cases: Vec<InputCase> = serde_json::from_str(&fs::read_to_string(&input)?)?;
-    // Use XALEN's JPL DE440 kernel for the strongest independent ephemeris
-    // cross-check. The first CI run downloads the public NAIF kernel and
-    // subsequent Cargo runs reuse the local XALEN cache.
-    let provider = De440Provider::from_auto_cache()?;
+    // Use a real JPL DE440 NAIF kernel supplied by CI for the strongest
+    // independent ephemeris cross-check. The production Worker is not
+    // modified by this reference harness.
+    let reader = De440Reader::from_file(std::path::Path::new(&kernel))?;
+    if reader.kernel_id() != Some("DE440") {
+        return Err("supplied kernel did not identify as DE440".into());
+    }
+    let provider = De440Provider::with_reader(reader);
     let almanac = Almanac::default_vedic().with_provider(Arc::new(provider));
     let dt = DeltaTModel::StephensonMorrisonHohenkerk2016;
 
