@@ -114,7 +114,9 @@ function calculate(body:any){
   const x=u.date;
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
-  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;\n  const jdTT=jd+deltaT(decimalYear)/86400;\n  const ay=get_ayanamsha(1,jdTT);
+  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;
+  const jdTT=jd+deltaT(decimalYear)/86400;
+  const ay=get_ayanamsha(1,jdTT);
   // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
   // sidereal path: it calculates with Swiss Ephemeris and subtracts the requested
   // ayanamsha consistently for all supported Vedic planets.
