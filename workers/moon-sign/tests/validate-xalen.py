@@ -61,6 +61,25 @@ def angle_error(a: float, b: float) -> float:
         d = 360 - d
     return d * 3600.0
 
+def moon_semantics(longitude: float) -> tuple[str, str, int]:
+    signs = [
+        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+    ]
+    nakshatras = [
+        "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
+        "Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni",
+        "Uttara Phalguni", "Hasta", "Chitra", "Swati", "Vishakha",
+        "Anuradha", "Jyeshtha", "Mula", "Purva Ashadha", "Uttara Ashadha",
+        "Shravana", "Dhanishtha", "Shatabhisha", "Purva Bhadrapada",
+        "Uttara Bhadrapada", "Revati",
+    ]
+    lon = longitude % 360.0
+    sign = signs[int(lon // 30.0)]
+    n = int(lon / (360.0 / 27.0))
+    pada = int((lon % (360.0 / 27.0)) / (360.0 / 108.0)) + 1
+    return sign, nakshatras[n], pada
+
 def main() -> int:
     cases = json.loads(CASES_PATH.read_text())["cases"]
     kernel_path = os.environ.get("XALEN_DE440_KERNEL", "/tmp/de440s.bsp")
