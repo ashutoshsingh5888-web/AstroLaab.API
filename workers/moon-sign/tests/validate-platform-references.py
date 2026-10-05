@@ -150,24 +150,39 @@ def parse_astrosage(url: str, raw: str) -> dict | None:
 
 def discover_astrosage_urls() -> list[str]:
     queue = list(FIXTURE.get("astroSageSitemapCandidates", []))
-    seen_sitemaps: set[str] = set()
+    seen: set[str] = set()
     found: list[str] = []
-    while queue and len(found) < 80:
-        sitemap = queue.pop(0)
-        if sitemap in seen_sitemaps:
+    while queue and len(found) < 200:
+        url = queue.pop(0)
+        if url in seen:
             continue
-        seen_sitemaps.add(sitemap)
+        seen.add(url)
         try:
-            raw = fetch(sitemap)
+            raw = fetch(url)
         except Exception:
             continue
-        for loc in re.findall(r"<loc>\s*(.*?)\s*</loc>", raw, re.I | re.S):
+
+        # Ordinary page/category HTML.
+        for href in re.findall(r'''href\\s*=\\s*["']([^"']*birth-chart\\.asp)["']''', raw, re.I):
+            if href.startswith("//"):
+                href = "https:" + href
+            elif href.startswith("/"):
+                href = "https://www.astrosage.com" + href
+            elif not href.startswith("http"):
+                href = "https://www.astrosage.com/" + href.lstrip("./")
+            href = html.unescape(href)
+            if href not in found:
+                found.append(href)
+
+        # XML sitemap/index.
+        for loc in re.findall(r"<loc>\\s*(.*?)\\s*</loc>", raw, re.I | re.S):
             loc = html.unescape(loc.strip())
-            if "/celebrity-horoscope/" in loc and re.search(r"-(?:birth-chart|horoscope)\.asp$", loc, re.I):
+            if "/celebrity-horoscope/" in loc and re.search(r"-(?:birth-chart|horoscope)\\.asp$", loc, re.I):
                 if loc not in found:
                     found.append(loc)
-            elif loc.endswith(".xml") and len(queue) < 100:
+            elif loc.endswith(".xml"):
                 queue.append(loc)
+
     return found
 
 def worker(case: dict) -> tuple[str, str, int]:
@@ -202,48 +217,69 @@ def worker(case: dict) -> tuple[str, str, int]:
     return sign, nak, pada
 
 def parse_drik_expected(raw: str) -> dict:
-    text = strip_text(raw)
+    # Preserve table boundaries before stripping HTML. Drik Panchang often
+    # places the label and value in adjacent cells; plain text stripping can
+    # concatenate them and defeat a proximity regex.
+    table_text = re.sub(r"(?is)<br\\s*/?>", " ", raw)
+    table_text = re.sub(r"(?is)</(?:td|th)>", " | ", table_text)
+    table_text = re.sub(r"(?is)</tr>", "\\n", table_text)
+    table_text = strip_text(table_text)
+
+    s_names = (
+        "Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces|"
+        "Mesha|Vrishabha|Mithuna|Kark|Simha|Kanya|Tula|Vrishchika|Dhanu|Makara|Kumb|Meena"
+    )
     sign_m = re.search(
-        r"Moon\s+Sign(?:\s*\(Paya\))?[^A-Za-z]{0,120}"
-        r"(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces|Mesha|Vrishabha|Mithuna|Kark|Simha|Kanya|Tula|Vrishchika|Dhanu|Makara|Kumb|Meena)",
-        text,
+        rf"Moon\\s*(?:Sign|Rashi|Rasi)\\s*(?:\\(Paya\\))?\\s*\\|?\\s*({s_names})",
+        table_text,
         re.I,
     )
     nak_m = re.search(
-        r"Nakshatra(?:\s*\(Charana\))?[^A-Za-z]{0,120}"
-        r"([A-Za-z]+)\s*\(\s*([1-4])\s*\)",
-        text,
+        r"Nakshatra\\s*(?:\\(Charana\\))?\\s*\\|?\\s*([A-Za-z]+)\\s*"
+        r"(?:\\(\\s*([1-4])\\s*\\))?",
+        table_text,
         re.I,
     )
     if sign_m and nak_m:
         sign = normalize_sign(sign_m.group(1))
         nak = normalize_nak(nak_m.group(1))
-        return {"moonSign": sign, "nakshatra": nak, "pada": int(nak_m.group(2))}
-    # Fallback to a Chandra/Moon longitude row if the page uses a compact layout.
-    moon_row = re.search(
-        r'(?:Chandra|Moon)[^0-9]{0,160}'
-        r'(\d{1,2})\s*[°:]\s*'
-        r'(Mesha|Vrishabha|Mithuna|Kark|Cancer|Simha|Leo|Kanya|Virgo|Tula|Libra|Vrishchika|Scorpio|Dhanu|Sagittarius|Makara|Capricorn|Kumb|Aquarius|Meena|Pisces)'
-        r'[^0-9]{0,80}(\d{1,2})\s*[′\']\s*(\d{1,2})\s*[″\"]',
-        text,
-        re.I,
-    )
-    if not moon_row:
-        raise RuntimeError("Drik Moon Sign/Nakshatra data not found")
-    sign = normalize_sign(moon_row.group(2))
-    sem = lunar_semantics(sign, float(moon_row.group(1)), float(moon_row.group(3)), float(moon_row.group(4)))
-    return {"moonSign": sem[0], "nakshatra": sem[1], "pada": sem[2]}
+        if nak in NAKSHATRAS:
+            pada = int(nak_m.group(2)) if nak_m.group(2) else None
+            if pada is not None:
+                return {"moonSign": sign, "nakshatra": nak, "pada": pada}
+
+    # A second row layout sometimes puts the Moon longitude itself in a
+    # planetary table. Restrict the search to a line containing "Moon" rather
+    # than scanning the entire page.
+    for line in table_text.splitlines():
+        if not re.search(r"\\bMoon\\b|Chandra", line, re.I):
+            continue
+        row = re.search(
+            rf"(?:Moon|Chandra)[^0-9]{{0,120}}"
+            rf"(\\d{{1,2}})\\s*[°:]\\s*({s_names})"
+            rf"[^0-9]{{0,80}}(\\d{{1,2}})\\s*[′']\\s*(\\d{{1,2}})\\s*[″"]",
+            line,
+            re.I,
+        )
+        if row:
+            sign = normalize_sign(row.group(2))
+            sem = lunar_semantics(sign, float(row.group(1)), float(row.group(3)), float(row.group(4)))
+            return {"moonSign": sem[0], "nakshatra": sem[1], "pada": sem[2]}
+
+    raise RuntimeError("Drik Moon Sign/Nakshatra data not found")
 
 def main() -> int:
-    astro: list[dict] = []
-    seeds = list(FIXTURE["astroSageSeeds"])
-    discovered = discover_astrosage_urls()
-    for url in discovered:
-        if url not in seeds:
-            seeds.append(url)
+    astro_target = 15
+    drik_target = 5
 
+    astro: list[dict] = []
+    seeds = list(dict.fromkeys(FIXTURE["astroSageSeeds"] + discover_astrosage_urls()))
+
+    # Parse enough real public AstroSage pages to establish the target sample.
+    # Mismatches are retained as failures; only unreadable/invalid pages are
+    # skipped as unusable references.
     for url in seeds:
-        if len(astro) >= FIXTURE["minimumAstroSageCases"]:
+        if len(astro) >= astro_target:
             break
         try:
             case = parse_astrosage(url, fetch(url))
@@ -252,27 +288,68 @@ def main() -> int:
         except Exception as exc:
             print(f"SKIP AstroSage {url}: {exc}")
 
-    if len(astro) < FIXTURE["minimumAstroSageCases"]:
-        raise RuntimeError(
-            f"Only {len(astro)} AstroSage references parsed; "
-            f"need at least {FIXTURE['minimumAstroSageCases']}"
-        )
+    if len(astro) < astro_target:
+        raise RuntimeError(f"Only {len(astro)} AstroSage references parsed; need {astro_target}")
 
     drik: list[dict] = []
-    for spec in FIXTURE["drikCases"]:
+    drik_specs = list(FIXTURE["drikCases"])
+
+    # Also discover public Drik celebrity Kundali URLs so a parser failure on a
+    # single fixed profile does not prevent us from reaching five genuine
+    # platform references.
+    try:
+        listing = fetch("https://www.drikpanchang.com/jyotisha/kundali/celebrities-kundali-list.html")
+        for href in re.findall(r'''href\\s*=\\s*["']([^"']*kundali-id=[0-9]+[^"']*)["']''', listing, re.I):
+            if href.startswith("/"):
+                href = "https://www.drikpanchang.com" + href
+            elif href.startswith("//"):
+                href = "https:" + href
+            if href.startswith("http") and not any(x.get("url") == href for x in drik_specs):
+                # Unknown birth fields are filled from the individual page below.
+                drik_specs.append({"id": "drik-dynamic", "url": href})
+    except Exception as exc:
+        print(f"INFO Drik discovery unavailable: {exc}")
+
+    for spec in drik_specs:
+        if len(drik) >= drik_target:
+            break
         try:
-            expected = parse_drik_expected(fetch(spec["url"]))
+            raw = fetch(spec["url"])
+            expected = parse_drik_expected(raw)
             case = dict(spec)
+            # Fixed cases already carry exact published birth details. Dynamic
+            # entries need those fields; parse common Drik labels when present.
+            if "date" not in case:
+                text = strip_text(raw)
+                dm = re.search(
+                    r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+                    r"\\s+(\\d{1,2}),\\s+(\\d{4})\\s+at\\s+(\\d{1,2}):?(\\d{2})\\s*(AM|PM)",
+                    text, re.I
+                )
+                place_m = re.search(r"(?:Place of Birth|Birth Place)\\s*[:|]\\s*([A-Za-z][A-Za-z .'-]+)", text, re.I)
+                if not dm:
+                    continue
+                hour = int(dm.group(4))
+                if dm.group(6).upper() == "PM" and hour != 12:
+                    hour += 12
+                if dm.group(6).upper() == "AM" and hour == 12:
+                    hour = 0
+                month = __import__("datetime").datetime.strptime(dm.group(1), "%B").month
+                case["date"] = f"{int(dm.group(3)):04d}-{month:02d}-{int(dm.group(2)):02d}"
+                case["time"] = f"{hour:02d}:{int(dm.group(5)):02d}:00"
+                case["timeZone"] = "Asia/Kolkata"
+                place = place_m.group(1).strip() if place_m else "India"
+                lat, lon = CITY_COORDS.get(place, (0.0, 0.0))
+                if abs(lat) < 1e-12 and abs(lon) < 1e-12:
+                    continue
+                case["place"] = {"name": place, "country": "India", "latitude": lat, "longitude": lon}
             case["expected"] = expected
             drik.append(case)
         except Exception as exc:
-            print(f"SKIP Drik {spec['id']}: {exc}")
+            print(f"SKIP Drik {spec.get('id', spec.get('url'))}: {exc}")
 
-    if len(drik) < FIXTURE.get("minimumDrikCases", len(FIXTURE["drikCases"])):
-        raise RuntimeError(
-            f"Only {len(drik)} Drik references parsed; "
-            f"need at least {FIXTURE.get('minimumDrikCases', len(FIXTURE['drikCases']))}"
-        )
+    if len(drik) < drik_target:
+        raise RuntimeError(f"Only {len(drik)} Drik references parsed; need {drik_target}")
 
     failures = 0
     tested = 0
@@ -313,12 +390,13 @@ def main() -> int:
             failures += 1
             print(f"ERROR Drik Panchang {case['id']}: {exc}")
 
-    print(f"\nPublic platform references tested: {tested}")
+    print(f"\\nPublic platform references tested: {tested} (target {astro_target + drik_target})")
     print(f"AstroSage references: {len(astro)}")
     print(f"Drik Panchang references: {len(drik)}")
-    print(f"Combined platform references: {tested} (minimum 20)")
+    print(f"Combined platform references: {tested}")
     print(f"Compatibility failures: {failures}")
     return 1 if failures else 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
