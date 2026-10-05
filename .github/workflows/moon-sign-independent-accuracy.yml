@@ -22,7 +22,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install independent reference engine
-        run: python -m pip install --disable-pip-version-check "pyswisseph==2.10.03"
+        run: python -m pip install --disable-pip-version-check "pyswisseph==2.10.3.2"
 
       - name: Allow Cloudflare deployment to settle
         run: sleep 30
