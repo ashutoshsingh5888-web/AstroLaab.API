@@ -56,3 +56,24 @@ The first implementation uses Photon / OpenStreetMap for place suggestions. It i
 ## Forensic validation
 
 `/forensic-test` compares the canonical TT planetary path with the raw UT Swiss Ephemeris call using the same embedded Swiss engine. It is diagnostic only and does not alter production calculation behavior.
+
+## Independent accuracy regression
+
+The primary accuracy gate is intentionally independent of the Worker runtime.
+
+- 50 deterministic birth-chart inputs are stored in `tests/independent-accuracy-cases.json`.
+- Reference positions are generated at test time with the independently maintained `pyswisseph` Python binding.
+- Reference uses Lahiri sidereal mode, Swiss Ephemeris delta-T, TT for planets and UT for houses.
+- The suite validates planetary longitudes, Moon sign, Nakshatra, Pada, Navamsa (D9), Ascendant, ayanamsha, timezone conversion, and Moon-boundary warnings.
+- Ten boundary pairs place the Moon 10 arcseconds before/after a Rashi boundary.
+- The expected astronomical values are not embedded in the production Worker.
+
+Run locally:
+
+```
+cd workers/moon-sign
+python -m pip install pyswisseph==2.10.03
+python tests/validate-independent-accuracy.py
+```
+
+GitHub Actions runs the same regression automatically on changes under `workers/moon-sign` and can also be started manually from the Actions tab.
