@@ -4,7 +4,7 @@ import {
   get_ayanamsha,
   get_swisseph_version,
   p_julday,
-} from "@fusionstrings/panchangam";
+} from "@fusionstrings/panchangam/browser";
 
 const SIGNS = [
   ["Mesha","Aries","♈"],["Vrishabha","Taurus","♉"],["Mithuna","Gemini","♊"],
