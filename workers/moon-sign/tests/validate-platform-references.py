@@ -221,10 +221,10 @@ def parse_drik_expected(raw: str) -> dict:
         return {"moonSign": sign, "nakshatra": nak, "pada": int(nak_m.group(2))}
     # Fallback to a Chandra/Moon longitude row if the page uses a compact layout.
     moon_row = re.search(
-        r"(?:Chandra|Moon)[^0-9]{0,160}"
-        r"(\d{1,2})\s*[°:]\s*"
-        r"(Mesha|Vrishabha|Mithuna|Kark|Cancer|Simha|Leo|Kanya|Virgo|Tula|Libra|Vrishchika|Scorpio|Dhanu|Sagittarius|Makara|Capricorn|Kumb|Aquarius|Meena|Pisces)"
-        r"[^0-9]{0,80}(\d{1,2})\s*[′']\s*(\d{1,2})\s*[″"]",
+        r'(?:Chandra|Moon)[^0-9]{0,160}'
+        r'(\d{1,2})\s*[°:]\s*'
+        r'(Mesha|Vrishabha|Mithuna|Kark|Cancer|Simha|Leo|Kanya|Virgo|Tula|Libra|Vrishchika|Scorpio|Dhanu|Sagittarius|Makara|Capricorn|Kumb|Aquarius|Meena|Pisces)'
+        r'[^0-9]{0,80}(\d{1,2})\s*[′\']\s*(\d{1,2})\s*[″\"]',
         text,
         re.I,
     )
