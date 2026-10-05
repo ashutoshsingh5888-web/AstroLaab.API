@@ -163,7 +163,7 @@ def discover_astrosage_urls() -> list[str]:
             continue
 
         # Ordinary page/category HTML.
-        for href in re.findall(r'''href\\s*=\\s*["']([^"']*birth-chart\\.asp)["']''', raw, re.I):
+        for href in re.findall(r'''href\s*=\s*["']([^"']*birth-chart\.asp)["']''', raw, re.I):
             if href.startswith("//"):
                 href = "https:" + href
             elif href.startswith("/"):
@@ -175,9 +175,9 @@ def discover_astrosage_urls() -> list[str]:
                 found.append(href)
 
         # XML sitemap/index.
-        for loc in re.findall(r"<loc>\\s*(.*?)\\s*</loc>", raw, re.I | re.S):
+        for loc in re.findall(r"<loc>\s*(.*?)\s*</loc>", raw, re.I | re.S):
             loc = html.unescape(loc.strip())
-            if "/celebrity-horoscope/" in loc and re.search(r"-(?:birth-chart|horoscope)\\.asp$", loc, re.I):
+            if "/celebrity-horoscope/" in loc and re.search(r"-(?:birth-chart|horoscope)\.asp$", loc, re.I):
                 if loc not in found:
                     found.append(loc)
             elif loc.endswith(".xml"):
@@ -220,9 +220,9 @@ def parse_drik_expected(raw: str) -> dict:
     # Preserve table boundaries before stripping HTML. Drik Panchang often
     # places the label and value in adjacent cells; plain text stripping can
     # concatenate them and defeat a proximity regex.
-    table_text = re.sub(r"(?is)<br\\s*/?>", " ", raw)
+    table_text = re.sub(r"(?is)<br\s*/?>", " ", raw)
     table_text = re.sub(r"(?is)</(?:td|th)>", " | ", table_text)
-    table_text = re.sub(r"(?is)</tr>", "\\n", table_text)
+    table_text = re.sub(r"(?is)</tr>", "\n", table_text)
     table_text = strip_text(table_text)
 
     s_names = (
@@ -230,13 +230,13 @@ def parse_drik_expected(raw: str) -> dict:
         "Mesha|Vrishabha|Mithuna|Kark|Simha|Kanya|Tula|Vrishchika|Dhanu|Makara|Kumb|Meena"
     )
     sign_m = re.search(
-        rf"Moon\\s*(?:Sign|Rashi|Rasi)\\s*(?:\\(Paya\\))?\\s*\\|?\\s*({s_names})",
+        rf"Moon\s*(?:Sign|Rashi|Rasi)\s*(?:\(Paya\))?\s*\|?\s*({s_names})",
         table_text,
         re.I,
     )
     nak_m = re.search(
-        r"Nakshatra\\s*(?:\\(Charana\\))?\\s*\\|?\\s*([A-Za-z]+)\\s*"
-        r"(?:\\(\\s*([1-4])\\s*\\))?",
+        r"Nakshatra\s*(?:\(Charana\))?\s*\|?\s*([A-Za-z]+)\s*"
+        r"(?:\(\s*([1-4])\s*\))?",
         table_text,
         re.I,
     )
@@ -252,12 +252,12 @@ def parse_drik_expected(raw: str) -> dict:
     # planetary table. Restrict the search to a line containing "Moon" rather
     # than scanning the entire page.
     for line in table_text.splitlines():
-        if not re.search(r"\\bMoon\\b|Chandra", line, re.I):
+        if not re.search(r"\bMoon\b|Chandra", line, re.I):
             continue
         row = re.search(
             rf"(?:Moon|Chandra)[^0-9]{{0,120}}"
-            rf"(\\d{{1,2}})\\s*[°:]\\s*({s_names})"
-            rf'[^0-9]{{0,80}}(\\d{{1,2}})\\D+(\\d{{1,2}})\\D+(\\d{{1,2}})',
+            rf"(\d{{1,2}})\s*[°:]\s*({s_names})"
+            rf'[^0-9]{{0,80}}(\d{{1,2}})\D+(\d{{1,2}})\D+(\d{{1,2}})',
             line,
             re.I,
         )
@@ -299,7 +299,7 @@ def main() -> int:
     # platform references.
     try:
         listing = fetch("https://www.drikpanchang.com/jyotisha/kundali/celebrities-kundali-list.html")
-        for href in re.findall(r'''href\\s*=\\s*["']([^"']*kundali-id=[0-9]+[^"']*)["']''', listing, re.I):
+        for href in re.findall(r'''href\s*=\s*["']([^"']*kundali-id=[0-9]+[^"']*)["']''', listing, re.I):
             if href.startswith("/"):
                 href = "https://www.drikpanchang.com" + href
             elif href.startswith("//"):
@@ -323,10 +323,10 @@ def main() -> int:
                 text = strip_text(raw)
                 dm = re.search(
                     r"(January|February|March|April|May|June|July|August|September|October|November|December)"
-                    r"\\s+(\\d{1,2}),\\s+(\\d{4})\\s+at\\s+(\\d{1,2}):?(\\d{2})\\s*(AM|PM)",
+                    r"\s+(\d{1,2}),\s+(\d{4})\s+at\s+(\d{1,2}):?(\d{2})\s*(AM|PM)",
                     text, re.I
                 )
-                place_m = re.search(r"(?:Place of Birth|Birth Place)\\s*[:|]\\s*([A-Za-z][A-Za-z .'-]+)", text, re.I)
+                place_m = re.search(r"(?:Place of Birth|Birth Place)\s*[:|]\s*([A-Za-z][A-Za-z .'-]+)", text, re.I)
                 if not dm:
                     continue
                 hour = int(dm.group(4))
@@ -390,7 +390,7 @@ def main() -> int:
             failures += 1
             print(f"ERROR Drik Panchang {case['id']}: {exc}")
 
-    print(f"\\nPublic platform references tested: {tested} (target {astro_target + drik_target})")
+    print(f"\nPublic platform references tested: {tested} (target {astro_target + drik_target})")
     print(f"AstroSage references: {len(astro)}")
     print(f"Drik Panchang references: {len(drik)}")
     print(f"Combined platform references: {tested}")
