@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "description": "Twenty public Vedic astrology platform references used only for compatibility validation. Fifteen are AstroSage celebrity charts and five are Drik Panchang celebrity Kundalis.",
+  "cases": [
+    {"id":"astrosage-amitabh-bachchan","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/amitabh-bachchan-birth-chart.asp"},
+    {"id":"astrosage-rajinikanth","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/rajinikanth-birth-chart.asp"},
+    {"id":"astrosage-aamir-khan","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/aamir-khan-birth-chart.asp"},
+    {"id":"astrosage-aishwarya-rai-bachchan","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/aishwarya-rai-bachchan-birth-chart.asp"},
+    {"id":"astrosage-narendra-modi","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/narendra-modi-birth-chart.asp"},
+    {"id":"astrosage-salman-khan","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/salman-khan-birth-chart.asp"},
+    {"id":"astrosage-sridevi","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/sridevi-birth-chart.asp"},
+    {"id":"astrosage-shah-rukh-khan","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/shah-rukh-khan-birth-chart.asp"},
+    {"id":"astrosage-sachin-tendulkar","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/sachin-tendulkar-birth-chart.asp"},
+    {"id":"astrosage-lata-mangeshkar","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/lata-mangeshkar-birth-chart.asp"},
+    {"id":"astrosage-ar-rahman","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/ar-rahman-birth-chart.asp"},
+    {"id":"astrosage-sanjay-dutt","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/sanjay-dutt-birth-chart.asp"},
+    {"id":"astrosage-naseeruddin-shah","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/naseeruddin-shah-birth-chart.asp"},
+    {"id":"astrosage-madhuri-dixit","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/madhuri-dixit-birth-chart.asp"},
+    {"id":"astrosage-mahatma-gandhi","platform":"AstroSage","url":"https://www.astrosage.com/celebrity-horoscope/mahatma-gandhi-birth-chart.asp"},
+    {"id":"drik-mahatma-gandhi","platform":"Drik Panchang","url":"https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80018001&lang=en"},
+    {"id":"drik-narendra-modi","platform":"Drik Panchang","url":"https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80018002&lang=en"},
+    {"id":"drik-sachin-tendulkar","platform":"Drik Panchang","url":"https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80019001&lang=en"},
+    {"id":"drik-amitabh-bachchan","platform":"Drik Panchang","url":"https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80020001&lang=en"},
+    {"id":"drik-swami-vivekananda","platform":"Drik Panchang","url":"https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80021001&lang=en"}
+  ]
+}
