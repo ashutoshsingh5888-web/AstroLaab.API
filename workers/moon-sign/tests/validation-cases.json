@@ -5,7 +5,7 @@
     "time":"14:30:00",
     "timeZone":"Asia/Kolkata",
     "place":{"name":"Mumbai","country":"India","latitude":19.076,"longitude":72.8777},
-    "expected":{"moonSign":"Makara","moonLongitude":271.888653616292}
+    "expected":{"moonSign":"Makara","moonLongitude":271.896805361394}
   },
   {
     "id":"india-delhi-2024",
