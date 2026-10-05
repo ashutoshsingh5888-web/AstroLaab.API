@@ -163,7 +163,7 @@ def fetch_chart(case: dict, attempts: int = 1) -> dict:
     request = urllib.request.Request(
         ENDPOINT,
         data=data,
-        headers={"content-type": "application/json"},
+        headers={"content-type": "application/json", "origin": "https://astrolaab.com", "user-agent": "AstroLaab-Accuracy/1.0"},
         method="POST",
     )
     last_error = None
