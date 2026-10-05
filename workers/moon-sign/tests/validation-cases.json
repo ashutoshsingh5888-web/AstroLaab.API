@@ -1,0 +1,66 @@
+[
+  {
+    "id":"india-mumbai-1990",
+    "date":"1990-05-15",
+    "time":"14:30:00",
+    "timeZone":"Asia/Kolkata",
+    "place":{"name":"Mumbai","country":"India","latitude":19.076,"longitude":72.8777},
+    "expected":{"moonSign":"Makara","moonLongitude":271.888653616292}
+  },
+  {
+    "id":"india-delhi-2024",
+    "date":"2024-01-01",
+    "time":"12:00:00",
+    "timeZone":"Asia/Kolkata",
+    "place":{"name":"New Delhi","country":"India","latitude":28.6139,"longitude":77.209},
+    "expected":{}
+  },
+  {
+    "id":"india-kolkata-2000",
+    "date":"2000-01-01",
+    "time":"00:00:00",
+    "timeZone":"Asia/Kolkata",
+    "place":{"name":"Kolkata","country":"India","latitude":22.5726,"longitude":88.3639},
+    "expected":{}
+  },
+  {
+    "id":"usa-new-york-dst",
+    "date":"2020-07-15",
+    "time":"12:00:00",
+    "timeZone":"America/New_York",
+    "place":{"name":"New York","country":"United States","latitude":40.7128,"longitude":-74.006},
+    "expected":{}
+  },
+  {
+    "id":"australia-sydney-dst",
+    "date":"2021-01-15",
+    "time":"12:00:00",
+    "timeZone":"Australia/Sydney",
+    "place":{"name":"Sydney","country":"Australia","latitude":-33.8688,"longitude":151.2093},
+    "expected":{}
+  },
+  {
+    "id":"equator-singapore",
+    "date":"2010-06-21",
+    "time":"06:30:00",
+    "timeZone":"Asia/Singapore",
+    "place":{"name":"Singapore","country":"Singapore","latitude":1.3521,"longitude":103.8198},
+    "expected":{}
+  },
+  {
+    "id":"southern-hemisphere-sao-paulo",
+    "date":"1985-11-03",
+    "time":"18:45:30",
+    "timeZone":"America/Sao_Paulo",
+    "place":{"name":"Sao Paulo","country":"Brazil","latitude":-23.5505,"longitude":-46.6333},
+    "expected":{}
+  },
+  {
+    "id":"europe-london",
+    "date":"1975-03-30",
+    "time":"09:15:00",
+    "timeZone":"Europe/London",
+    "place":{"name":"London","country":"United Kingdom","latitude":51.5074,"longitude":-0.1278},
+    "expected":{}
+  }
+]
