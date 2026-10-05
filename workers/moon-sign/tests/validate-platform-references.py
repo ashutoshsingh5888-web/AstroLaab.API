@@ -333,7 +333,7 @@ def main() -> int:
         check_case(case)
 
     tested = len(astro) + len(drik)
-    print(f"\nPublic platform references tested: {tested} (target {astro_target + len(drik)})")
+    print(f"\nPublic platform references tested: {tested} (target {astro_target + drik_target})")
     print(f"AstroSage references: {len(astro)}")
     print(f"Drik Panchang references: {len(drik)}")
     print(f"Hard Rashi/Nakshatra matches: {hard_matches}/{tested}")
