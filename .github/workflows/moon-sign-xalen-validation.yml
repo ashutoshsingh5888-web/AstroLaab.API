@@ -24,8 +24,16 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Download JPL DE440 short-span kernel
+        run: |
+          curl --fail --location --retry 5 --retry-delay 2 \\
+            https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp \\
+            --output /tmp/de440s.bsp
+          test $(stat -c%s /tmp/de440s.bsp) -gt 8000000
+
       - name: Run XALEN secondary cross-check
         working-directory: workers/moon-sign
         env:
           ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+          XALEN_DE440_KERNEL: /tmp/de440s.bsp
         run: python tests/validate-xalen.py
