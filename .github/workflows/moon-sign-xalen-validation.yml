@@ -37,25 +37,27 @@ jobs:
           else
             rm -f /tmp/de440s.bsp
             urls=(
-              "https://naif.jpl.nasa.gov/pub/naif/M01/kernels/spk/de440s.bsp"
-              "https://naif.jpl.nasa.gov/pub/naif/JUNO/kernels/spk/de440s.bsp"
-              "https://naif.jpl.nasa.gov/pub/naif/ORX/kernels/spk/de440s.bsp"
+              "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp"
+              "https://raw.githubusercontent.com/Jthora/ephemerisServer/main/server/backend/ephemeris/de440s.bsp"
+              "https://zenodo.org/records/18640418/files/de440s.bsp?download=1"
             )
             downloaded=0
             for url in "${urls[@]}"; do
               echo "Trying $url"
-              if curl --fail --location --retry 5 --retry-all-errors --retry-delay 2                 --user-agent "AstroLaab-DE440-Validation/1.0"                 "$url" --output /tmp/de440s.bsp; then
-                if [ "$(stat -c%s /tmp/de440s.bsp)" -gt 8000000 ]; then
+              rm -f /tmp/de440s.bsp
+              if curl --fail --location --retry 5 --retry-all-errors --retry-delay 2                 --connect-timeout 20 --max-time 180                 --user-agent "AstroLaab-DE440-Validation/1.0"                 "$url" --output /tmp/de440s.bsp; then
+                size="$(stat -c%s /tmp/de440s.bsp)"
+                echo "Downloaded $size bytes"
+                if [ "$size" -gt 8000000 ]; then
                   downloaded=1
                   break
                 fi
               fi
-              rm -f /tmp/de440s.bsp
             done
             test "$downloaded" -eq 1
           fi
           test "$(stat -c%s /tmp/de440s.bsp)" -gt 8000000
-
+          sha256sum /tmp/de440s.bsp
       - name: Run XALEN secondary cross-check
         working-directory: workers/moon-sign
         env:
