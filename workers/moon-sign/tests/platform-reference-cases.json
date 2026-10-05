@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "description": "Twenty public Vedic platform compatibility references: at least 15 AstroSage celebrity charts discovered from public celebrity-chart pages plus five Drik Panchang celebrity Kundalis.",
-  "minimumAstroSageCases": 15,
+  "minimumAstroSageCases": 17,
   "drikCases": [
     {
       "id": "drik-mahatma-gandhi",
@@ -97,5 +97,6 @@
     "https://www.astrosage.com/celebrity-horoscope/",
     "https://www.astrosage.com/sitemap.xml",
     "https://www.astrosage.com/celebrity-horoscope/sitemap.xml"
-  ]
+  ],
+  "minimumDrikCases": 3
 }
