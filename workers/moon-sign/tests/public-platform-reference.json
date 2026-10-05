@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "description": "Pinned public-platform regression fixtures. These are not used by the production Worker; they verify that our outputs agree with popular Vedic astrology platforms for identical published birth data.",
+  "platforms": [
+    {
+      "name": "AstroSage",
+      "url": "https://www.astrosage.com/celebrity-horoscope/amitabh-bachchan-birth-chart.asp",
+      "settings": "Published chart; timezone +05:30; Moon sign Libra; Swati pada 2; Moon longitude 10-54-35 Libra."
+    },
+    {
+      "name": "Drik Panchang",
+      "url": "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80020001",
+      "settings": "Published celebrity chart; Lahiri/Chitra Paksha; timezone +05:30; Moon sign Tula/Libra; Swati pada 2; Moon longitude 10-18-31 in the site's displayed local chart notation."
+    }
+  ],
+  "cases": [
+    {
+      "id": "public-amitabh-1942",
+      "date": "1942-10-11",
+      "time": "16:00:00",
+      "timeZone": "Asia/Kolkata",
+      "place": {
+        "name": "Allahabad",
+        "country": "India",
+        "latitude": 25.95,
+        "longitude": 81.8333333333
+      },
+      "expected": {
+        "moonSign": "Libra",
+        "nakshatra": "Swati",
+        "pada": 2,
+        "longitude": 190.9097222222
+      },
+      "sources": [
+        "https://www.astrosage.com/celebrity-horoscope/amitabh-bachchan-birth-chart.asp",
+        "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80020001"
+      ]
+    }
+  ]
+}
