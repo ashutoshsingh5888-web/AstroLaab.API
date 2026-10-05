@@ -1,6 +1,6 @@
 {
   "schemaVersion": 4,
-  "description": "Twenty public Vedic platform compatibility references: at least 15 AstroSage celebrity charts discovered from public celebrity-chart pages plus five Drik Panchang celebrity Kundalis.",
+  "description": "Twenty public Vedic platform compatibility references: 17 AstroSage celebrity birth charts plus 3 Drik Panchang celebrity Kundalis.",
   "minimumAstroSageCases": 17,
   "drikCases": [
     {
@@ -81,7 +81,9 @@
     "https://www.astrosage.com/celebrity-horoscope/madhuri-dixit-birth-chart.asp",
     "https://www.astrosage.com/celebrity-horoscope/shah-rukh-khan-birth-chart.asp",
     "https://www.astrosage.com/celebrity-horoscope/bill-gates-birth-chart.asp",
-    "https://www.astrosage.com/celebrity-horoscope/michael-jackson-birth-chart.asp"
+    "https://www.astrosage.com/celebrity-horoscope/michael-jackson-birth-chart.asp",
+    "https://www.astrosage.com/celebrity-horoscope/kareena-kapoor-birth-chart.asp",
+    "https://www.astrosage.com/celebrity-horoscope/virat-kohli-birth-chart.asp"
   ],
   "astroSageSitemapCandidates": [
     "https://www.astrosage.com/celebrity-horoscope/",
