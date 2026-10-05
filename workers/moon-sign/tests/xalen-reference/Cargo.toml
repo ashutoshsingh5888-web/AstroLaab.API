@@ -1,0 +1,11 @@
+[package]
+name = "astrolaab-xalen-reference"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+xalen-ephemeris = { git = "https://github.com/vedika-io/xalen-ephemeris.git", rev = "cc6edbec1f748ebdc4950ae6198f575c5ada73fa", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
