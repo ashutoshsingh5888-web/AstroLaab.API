@@ -134,6 +134,47 @@ function calculate(body:any){
     boundaryWarning:moon.sign.degreeInSign<0.1||moon.sign.degreeInSign>29.9?"Moon is very close to a Rashi boundary. Recheck birth time and timezone.":null
   };
 }
+const SELF_TESTS:any[] = [
+  {id:"india-mumbai-1990",date:"1990-05-15",time:"14:30:00",timeZone:"Asia/Kolkata",place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},expected:{moonSign:"Makara",moonLongitude:271.888653616292}},
+  {id:"india-delhi-2024",date:"2024-01-01",time:"12:00:00",timeZone:"Asia/Kolkata",place:{name:"New Delhi",country:"India",latitude:28.6139,longitude:77.209}},
+  {id:"india-kolkata-2000",date:"2000-01-01",time:"00:00:00",timeZone:"Asia/Kolkata",place:{name:"Kolkata",country:"India",latitude:22.5726,longitude:88.3639}},
+  {id:"usa-new-york-dst",date:"2020-07-15",time:"12:00:00",timeZone:"America/New_York",place:{name:"New York",country:"United States",latitude:40.7128,longitude:-74.006}},
+  {id:"australia-sydney-dst",date:"2021-01-15",time:"12:00:00",timeZone:"Australia/Sydney",place:{name:"Sydney",country:"Australia",latitude:-33.8688,longitude:151.2093}},
+  {id:"equator-singapore",date:"2010-06-21",time:"06:30:00",timeZone:"Asia/Singapore",place:{name:"Singapore",country:"Singapore",latitude:1.3521,longitude:103.8198}},
+  {id:"southern-hemisphere-sao-paulo",date:"1985-11-03",time:"18:45:30",timeZone:"America/Sao_Paulo",place:{name:"Sao Paulo",country:"Brazil",latitude:-23.5505,longitude:-46.6333}},
+  {id:"europe-london",date:"1975-03-30",time:"09:15:00",timeZone:"Europe/London",place:{name:"London",country:"United Kingdom",latitude:51.5074,longitude:-0.1278}}
+];
+
+function runSelfTest(){
+  const results:any[]=[];
+  for(const t of SELF_TESTS){
+    try{
+      const b={...t,houseSystem:"W"};
+      const out=calculate(b);
+      const checks:any[]=[
+        ["engine",out.engine==="Swiss Ephemeris"],
+        ["Lahiri",out.calculationProfile?.ayanamsha==="Lahiri (Chitrapaksha)"],
+        ["Moon longitude",Number.isFinite(out.moon?.siderealLongitude)],
+        ["Rashi",typeof out.moon?.sign?.english==="string"],
+        ["Nakshatra",Number.isInteger(out.moon?.nakshatra?.index)&&out.moon.nakshatra.index>=1&&out.moon.nakshatra.index<=27],
+        ["Pada",Number.isInteger(out.moon?.nakshatra?.pada)&&out.moon.nakshatra.pada>=1&&out.moon.nakshatra.pada<=4],
+        ["D9",typeof out.moon?.navamsa?.english==="string"],
+        ["Planets",Array.isArray(out.planets)&&out.planets.length>=7],
+        ["Houses",Array.isArray(out.houses?.cusps)&&out.houses.cusps.length>=12],
+        ["Ascendant",Number.isFinite(out.houses?.ascendant?.degreeInSign)]
+      ];
+      if(t.expected?.moonSign) checks.push(["golden Moon sign",out.moon.sign.name===t.expected.moonSign]);
+      if(Number.isFinite(t.expected?.moonLongitude)) checks.push(["golden Moon longitude",Math.abs(out.moon.siderealLongitude-t.expected.moonLongitude)<1e-7]);
+      const failed=checks.filter((x:any)=>!x[1]).map((x:any)=>x[0]);
+      results.push({id:t.id,status:failed.length?"FAIL":"PASS",failed});
+    }catch(e){
+      results.push({id:t.id,status:"ERROR",error:e instanceof Error?e.message:String(e)});
+    }
+  }
+  const passed=results.filter(x=>x.status==="PASS").length;
+  return {ok:passed===results.length,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",tests:results,passed,failed:results.length-passed,total:results.length};
+}
+
 async function locations(q:string,req:Request){
   if(q.trim().length<2||q.length>100) return err("location query must be 2–100 characters",req);
   const u=new URL("https://photon.komoot.io/api/"); u.searchParams.set("q",q.trim());u.searchParams.set("limit","6");u.searchParams.set("lang","en");
@@ -152,6 +193,7 @@ export default {async fetch(req:Request){
   try{
     if(req.method==="GET"&&u.pathname==="/health") return json({ok:true,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),ayanamsha:"Lahiri (Chitrapaksha)"},200,req);
     if(req.method==="GET"&&u.pathname==="/location") return locations(u.searchParams.get("q")??"",req);
+    if(req.method==="GET"&&u.pathname==="/self-test") return json(runSelfTest(),200,req);
     if(req.method==="POST"&&(u.pathname==="/moon-sign"||u.pathname==="/birth-chart")){
       const body=await req.json();
       if(!body||typeof body!=="object") return err("invalid JSON body",req);
