@@ -89,6 +89,17 @@ function divisionalSign(longitude:number, division:number){
   }
   return signOf(((rashi*division+part)%12)*30);
 }
+function deltaT(year:number){
+  let t:number;
+  if(year<1920){t=year-1900;return -2.79+1.494119*t-0.0598939*t**2+0.0061966*t**3-0.000197*t**4;}
+  if(year<1941){t=year-1920;return 21.20+0.84493*t-0.0761*t**2+0.0020936*t**3;}
+  if(year<1961){t=year-1950;return 29.07+0.407*t-t**2/233+t**3/2547;}
+  if(year<1986){t=year-1975;return 45.45+1.067*t-t**2/260-t**3/718;}
+  if(year<2005){t=year-2000;return 63.86+0.3345*t-0.060374*t**2+0.0017275*t**3+0.000651814*t**4+0.00002373599*t**5;}
+  if(year<2050){t=year-2000;return 62.92+0.32217*t+0.005589*t**2;}
+  return -20+32*((year-1820)/100)**2-0.5628*(2150-year);
+}
+
 function planetId(name:string){
   const n=name.toLowerCase();
   if(n.includes("sun")) return 0; if(n.includes("moon")) return 1; if(n.includes("mercury")) return 2;
@@ -103,11 +114,11 @@ function calculate(body:any){
   const x=u.date;
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
-  const ay=get_ayanamsha(1,jd);
+  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;\n  const jdTT=jd+deltaT(decimalYear)/86400;\n  const ay=get_ayanamsha(1,jdTT);
   // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
   // sidereal path: it calculates with Swiss Ephemeris and subtracts the requested
   // ayanamsha consistently for all supported Vedic planets.
-  const planetsRaw=calculate_planets(jd,1) as any[];
+  const planetsRaw=calculate_planets(jdTT,1) as any[];
   const planets=planetsRaw.map((p:any)=>{
     const longitude=norm(Number(p.longitude));
     const s=signOf(longitude);
@@ -127,9 +138,9 @@ function calculate(body:any){
   }
   const ayanamsaDeg=Number(ay);
   return {
-    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris"},
+    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris",timeScales:{planets:"TT",houses:"UT",ayanamsha:"TT",deltaTSeconds:deltaT(decimalYear)}},
     ayanamsha:{name:"Lahiri (Chitrapaksha)",mode:1,degrees:ayanamsaDeg},
-    birth:{localDate:body.date,localTime:body.time,timeZone:body.timeZone,utcOffsetMinutes:u.offsetMinutes,utc:x.toISOString(),julianDayUT:jd},
+    birth:{localDate:body.date,localTime:body.time,timeZone:body.timeZone,utcOffsetMinutes:u.offsetMinutes,utc:x.toISOString(),julianDayUT:jd,julianDayTT:jdTT},
     location:body.place?{name:body.place.name??null,country:body.place.country??null,latitude:Number(body.place.latitude),longitude:Number(body.place.longitude)}:null,
     moon:{siderealLongitude:moon.longitude,sign:moon.sign,degreeInSign:moon.sign.degreeInSign,degreeInSignDms:moon.sign.degreeInSignDms,nakshatra:{name:NAKSHATRAS[ni],index:ni+1,pada},navamsa:moon.navamsa},
     planets,
