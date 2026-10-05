@@ -169,13 +169,6 @@ def main() -> int:
                 print(f"PASS {cid}")
 
         failures = geometry_failures
-        print(f"FAIL {cid}: " + ", ".join(
-                    f"{k}={v:.3f} arcsec" if v is not None else f"{k}=missing"
-                    for k, v in bad.items()
-                ))
-            else:
-                print(f"PASS {cid}")
-
         print(
             f"\nXALEN/JPL DE440 geometry cross-check: {len(cases) - geometry_failures}/{len(cases)} "
             f"within {TOLERANCE_ARCSEC:.1f} arcsec after common-frame removal"
