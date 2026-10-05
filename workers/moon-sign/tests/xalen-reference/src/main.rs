@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use xalen_ephemeris::ayanamsa::Ayanamsa;
-use xalen_ephemeris::ephem::{Almanac, Body};
+use xalen_ephemeris::ephem::{Almanac, Body, De440Provider};
 use xalen_ephemeris::time::{DeltaTModel, JdUT1};
 
 #[derive(Debug, Deserialize)]
@@ -25,7 +26,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = arg_value(&args, "--output")?;
 
     let cases: Vec<InputCase> = serde_json::from_str(&fs::read_to_string(&input)?)?;
-    let almanac = Almanac::default_vedic();
+    // Use XALEN's JPL DE440 kernel for the strongest independent ephemeris
+    // cross-check. The first CI run downloads the public NAIF kernel and
+    // subsequent Cargo runs reuse the local XALEN cache.
+    let provider = De440Provider::from_auto_cache()?;
+    let almanac = Almanac::default_vedic().with_provider(Arc::new(provider));
     let dt = DeltaTModel::StephensonMorrisonHohenkerk2016;
 
     let mut out = Vec::with_capacity(cases.len());
