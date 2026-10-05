@@ -333,6 +333,7 @@ def main() -> int:
         check_case(case)
 
     tested = len(astro) + len(drik)
+    drik_target = int(FIXTURE.get("minimumDrikCases", len(drik_cases)))
     print(f"\nPublic platform references tested: {tested} (target {astro_target + drik_target})")
     print(f"AstroSage references: {len(astro)}")
     print(f"Drik Panchang references: {len(drik)}")
