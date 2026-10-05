@@ -1,6 +1,6 @@
 import {
   calculate_nakshatra,
-  calculate_planets,
+  calc_ut,
   get_ayanamsha,
   get_swisseph_version,
   p_julday,
@@ -87,8 +87,11 @@ function calculate(body:any){
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
   const ay=get_ayanamsha(1,jd);
-  const planets=calculate_planets(jd,1) as any[];
-  const moon=moonOf(planets);
+  // Use Swiss Ephemeris calc_ut directly with SWIEPH + SIDEREAL + Lahiri.
+  // This avoids any higher-level wrapper rounding/conversion differences.
+  const SEFLG_SWIEPH = 2;
+  const SEFLG_SIDEREAL = 65536;
+  const moon = calc_ut(jd, 1, SEFLG_SWIEPH | SEFLG_SIDEREAL) as any;
   const longitude=norm(Number(moon.longitude));
   const si=Math.floor(longitude/30), deg=longitude-si*30;
   const ni=Math.floor(longitude/(360/27)), pada=Math.floor((longitude%(360/27))/((360/27)/4))+1;
