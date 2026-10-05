@@ -1,5 +1,7 @@
 import {
   calculate_nakshatra,
+  calculate_houses,
+  calculate_planets,
   calc_ut,
   get_ayanamsha,
   get_swisseph_version,
@@ -74,10 +76,25 @@ function dms(x:number){
   const deg=Math.floor(total/3600), min=Math.floor((total%3600)/60), sec=total%60;
   return {degrees:deg,minutes:min,seconds:sec,text:`${deg}° ${String(min).padStart(2,"0")}′ ${String(sec).padStart(2,"0")}″`};
 }
-function moonOf(planets:any[]){
-  const m=planets.find(p=>Number(p.id)===1||String(p.name).toLowerCase()==="moon");
-  if(!m) throw new Error("Moon position unavailable");
-  return m;
+function signOf(longitude:number){
+  const i=Math.floor(norm(longitude)/30);
+  return {index:i+1,name:SIGNS[i][0],english:SIGNS[i][1],symbol:SIGNS[i][2],degreeInSign:norm(longitude)-i*30,degreeInSignDms:dms(norm(longitude)-i*30)};
+}
+function divisionalSign(longitude:number, division:number){
+  const x=norm(longitude), rashi=Math.floor(x/30), part=Math.floor((x%30)/(30/division));
+  // Generic varga mapping. D9 is the primary public chart; this follows the classical movable/fixed/dual navamsa rule.
+  if(division===9){
+    const navamsaIndex = ((rashi%3===0 ? rashi : rashi%3===1 ? (rashi+8)%12 : (rashi+4)%12) + part) % 12;
+    return signOf(navamsaIndex*30);
+  }
+  return signOf(((rashi*division+part)%12)*30);
+}
+function planetId(name:string){
+  const n=name.toLowerCase();
+  if(n.includes("sun")) return 0; if(n.includes("moon")) return 1; if(n.includes("mercury")) return 2;
+  if(n.includes("venus")) return 3; if(n.includes("mars")) return 4; if(n.includes("jupiter")) return 5;
+  if(n.includes("saturn")) return 6; if(n.includes("uranus")) return 7; if(n.includes("neptune")) return 8;
+  if(n.includes("pluto")) return 9; return -1;
 }
 
 function calculate(body:any){
@@ -87,21 +104,34 @@ function calculate(body:any){
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
   const ay=get_ayanamsha(1,jd);
-  // Use Swiss Ephemeris calc_ut directly with SWIEPH + SIDEREAL + Lahiri.
-  // This avoids any higher-level wrapper rounding/conversion differences.
-  const SEFLG_SWIEPH = 2;
-  const SEFLG_SIDEREAL = 65536;
-  const moon = calc_ut(jd, 1, SEFLG_SWIEPH | SEFLG_SIDEREAL) as any;
-  const longitude=norm(Number(moon.longitude));
-  const si=Math.floor(longitude/30), deg=longitude-si*30;
-  const ni=Math.floor(longitude/(360/27)), pada=Math.floor((longitude%(360/27))/((360/27)/4))+1;
+  const planetsRaw=calculate_planets(jd,1) as any[];
+  const planets=planetsRaw.map((p:any)=>{
+    const longitude=norm(Number(p.longitude));
+    const s=signOf(longitude);
+    return {id:Number(p.id),name:p.name,longitude,latitude:Number(p.latitude??0),speed:Number(p.speed??0),retrograde:Boolean(p.is_retrograde),sign:s,navamsa:divisionalSign(longitude,9)};
+  });
+  const moon=planets.find((p:any)=>p.id===1);
+  if(!moon) throw new Error("Moon position unavailable");
+  const ni=Math.floor(moon.longitude/(360/27)), pada=Math.floor((moon.longitude%(360/27))/((360/27)/4))+1;
+  let houses:any=null;
+  if(body.place){
+    const lat=Number(body.place.latitude), lon=Number(body.place.longitude);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180) throw new Error("invalid selected location");
+    const hs=String(body.houseSystem??"P").toUpperCase();
+    if(!["P","W","E"].includes(hs)) throw new Error("houseSystem must be P, W or E");
+    const h=calculate_houses(jd,lat,lon,hs,1) as any;
+    houses={system:hs,ascendant:signOf(Number(h.ascendant)),cusps:Array.from(h.cusps??[]).map((v:number,i:number)=>({house:i+1,longitude:norm(Number(v)),sign:signOf(norm(Number(v)))}))};
+  }
+  const ayanamsaDeg=Number(ay);
   return {
-    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),
-    ayanamsha:{name:"Lahiri (Chitrapaksha)",mode:1,degrees:Number(ay)},
+    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris"},
+    ayanamsha:{name:"Lahiri (Chitrapaksha)",mode:1,degrees:ayanamsaDeg},
     birth:{localDate:body.date,localTime:body.time,timeZone:body.timeZone,utcOffsetMinutes:u.offsetMinutes,utc:x.toISOString(),julianDayUT:jd},
     location:body.place?{name:body.place.name??null,country:body.place.country??null,latitude:Number(body.place.latitude),longitude:Number(body.place.longitude)}:null,
-    moon:{siderealLongitude:longitude,sign:{name:SIGNS[si][0],english:SIGNS[si][1],symbol:SIGNS[si][2]},degreeInSign:deg,degreeInSignDms:dms(deg),nakshatra:{name:NAKSHATRAS[ni],index:ni+1,pada}},
-    boundaryWarning:deg<0.1||deg>29.9?"Moon is very close to a Rashi boundary. Recheck birth time and timezone.":null
+    moon:{siderealLongitude:moon.longitude,sign:moon.sign,degreeInSign:moon.sign.degreeInSign,degreeInSignDms:moon.sign.degreeInSignDms,nakshatra:{name:NAKSHATRAS[ni],index:ni+1,pada},navamsa:moon.navamsa},
+    planets,
+    houses,
+    boundaryWarning:moon.sign.degreeInSign<0.1||moon.sign.degreeInSign>29.9?"Moon is very close to a Rashi boundary. Recheck birth time and timezone.":null
   };
 }
 async function locations(q:string,req:Request){
@@ -122,7 +152,7 @@ export default {async fetch(req:Request){
   try{
     if(req.method==="GET"&&u.pathname==="/health") return json({ok:true,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),ayanamsha:"Lahiri (Chitrapaksha)"},200,req);
     if(req.method==="GET"&&u.pathname==="/location") return locations(u.searchParams.get("q")??"",req);
-    if(req.method==="POST"&&u.pathname==="/moon-sign"){
+    if(req.method==="POST"&&(u.pathname==="/moon-sign"||u.pathname==="/birth-chart")){
       const body=await req.json();
       if(!body||typeof body!=="object") return err("invalid JSON body",req);
       if(body.place && (!Number.isFinite(Number(body.place.latitude))||!Number.isFinite(Number(body.place.longitude)))) return err("invalid selected location",req);
