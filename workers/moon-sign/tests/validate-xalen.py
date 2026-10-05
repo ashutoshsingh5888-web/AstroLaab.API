@@ -62,6 +62,9 @@ def angle_error(a: float, b: float) -> float:
 
 def main() -> int:
     cases = json.loads(CASES_PATH.read_text())["cases"]
+    kernel_path = os.environ.get("XALEN_DE440_KERNEL", "/tmp/de440s.bsp")
+    if not Path(kernel_path).exists():
+        raise FileNotFoundError(f"DE440 kernel missing: {kernel_path}")
 
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -85,6 +88,7 @@ def main() -> int:
                 "cargo", "run", "--quiet", "--release",
                 "--manifest-path", str(XALEN_MANIFEST), "--",
                 "--input", str(input_path), "--output", str(output_path),
+                "--kernel", kernel_path,
             ],
             check=True,
         )
