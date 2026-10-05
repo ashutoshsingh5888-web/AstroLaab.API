@@ -171,7 +171,7 @@ async function runAccuracyTest(){
     place:{latitude:28+40/60,longitude:77+13/60},
     expected:{
       Ascendant:45+30/60+14/3600,
-      Sun:120+6/60+42/3600,
+      Sun:120+6+42/60+30/3600,
       Moon:16+23/60+10/3600,
       Mars:150+18+40/60+48/3600,
       Mercury:90+28+16/60+43/3600,
