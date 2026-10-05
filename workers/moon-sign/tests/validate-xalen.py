@@ -21,7 +21,7 @@ ENDPOINT = os.environ.get(
     "https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart",
 )
 CASES_PATH = Path(__file__).with_name("independent-accuracy-cases.json")
-XALEN_MANIFEST = Path(__file__).with_name("xalen-reference/Cargo.toml")
+XALEN_MANIFEST = Path(__file__).resolve().parent / "xalen-reference" / "Cargo.toml"
 TOLERANCE_ARCSEC = 5.0
 
 def jd_from_utc(dt: datetime) -> float:
