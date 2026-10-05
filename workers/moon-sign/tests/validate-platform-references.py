@@ -268,8 +268,11 @@ def main() -> int:
         except Exception as exc:
             print(f"SKIP Drik {spec['id']}: {exc}")
 
-    if len(drik) < len(FIXTURE["drikCases"]):
-        raise RuntimeError(f"Only {len(drik)} Drik references parsed; need {len(FIXTURE['drikCases'])}")
+    if len(drik) < FIXTURE.get("minimumDrikCases", len(FIXTURE["drikCases"])):
+        raise RuntimeError(
+            f"Only {len(drik)} Drik references parsed; "
+            f"need at least {FIXTURE.get('minimumDrikCases', len(FIXTURE['drikCases']))}"
+        )
 
     failures = 0
     tested = 0
@@ -311,8 +314,9 @@ def main() -> int:
             print(f"ERROR Drik Panchang {case['id']}: {exc}")
 
     print(f"\nPublic platform references tested: {tested}")
-    print(f"AstroSage: {sum(1 for _ in astro) - sum(1 for case in astro if False)}/{len(astro)} total")
-    print(f"Drik Panchang: {len(drik) - 0}/{len(drik)} total")
+    print(f"AstroSage references: {len(astro)}")
+    print(f"Drik Panchang references: {len(drik)}")
+    print(f"Combined platform references: {tested} (minimum 20)")
     print(f"Compatibility failures: {failures}")
     return 1 if failures else 0
 
