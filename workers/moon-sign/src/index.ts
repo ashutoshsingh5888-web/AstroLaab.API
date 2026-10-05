@@ -104,23 +104,15 @@ function calculate(body:any){
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
   const ay=get_ayanamsha(1,jd);
-  // IMPORTANT: calc() expects Julian Day in TT/ET. Birth JD here is UT.
-  // Using calc() with UT creates a Delta-T-sized timing error (tens of arcseconds),
-  // which is unacceptable for a precision birth-chart engine. Use calc_ut() explicitly.
-  const SEFLG_SWIEPH = 2;
-  const SEFLG_SPEED = 256;
-  const planetDefs:any[]=[
-    [0,"Sun"],[1,"Moon"],[2,"Mercury"],[3,"Venus"],[4,"Mars"],[5,"Jupiter"],[6,"Saturn"],[10,"Rahu"]
-  ];
-  const planets:any[]=planetDefs.map(([id,name])=>{
-    const raw=calc_ut(jd,id,SEFLG_SWIEPH|SEFLG_SPEED) as any;
-    const tropical=norm(Number(raw.longitude));
-    const longitude=norm(tropical-Number(ay));
+  // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
+  // sidereal path: it calculates with Swiss Ephemeris and subtracts the requested
+  // ayanamsha consistently for all supported Vedic planets.
+  const planetsRaw=calculate_planets(jd,1) as any[];
+  const planets=planetsRaw.map((p:any)=>{
+    const longitude=norm(Number(p.longitude));
     const s=signOf(longitude);
-    return {id,name,longitude,latitude:Number(raw.latitude??0),speed:Number(raw.speed??raw.longitude_speed??0),retrograde:Number(raw.speed??raw.longitude_speed??0)<0,sign:s,navamsa:divisionalSign(longitude,9)};
+    return {id:Number(p.id),name:p.name,longitude,latitude:Number(p.latitude??0),speed:Number(p.speed??0),retrograde:Boolean(p.is_retrograde),sign:s,navamsa:divisionalSign(longitude,9)};
   });
-  const rahu=planets.find((p:any)=>p.id===10);
-  if(rahu) planets.push({id:11,name:"Ketu",longitude:norm(rahu.longitude+180),latitude:-rahu.latitude,speed:rahu.speed,retrograde:rahu.retrograde,sign:signOf(norm(rahu.longitude+180)),navamsa:divisionalSign(norm(rahu.longitude+180),9)});
   const moon=planets.find((p:any)=>p.id===1);
   if(!moon) throw new Error("Moon position unavailable");
   const ni=Math.floor(moon.longitude/(360/27)), pada=Math.floor((moon.longitude%(360/27))/((360/27)/4))+1;
