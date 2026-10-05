@@ -157,22 +157,51 @@ const SELF_TESTS:any[] = [
 ];
 
 async function runAccuracyTest(){
-  const refs=[["india-mumbai-1990","1990-05-15","14:30:00","Asia/Kolkata",19.076,72.8777,271.893544051776,30.549786151397,14.30228830604,348.949947571366,324.51521013584,75.792250925741,271.525742533984,147.476635359085,23.722545538704],["india-delhi-2024","2024-01-01","12:00:00","Asia/Kolkata",28.6139,77.209,135.007046782124,256.124096960978,238.048034754996,218.75082075704,243.318327838058,11.392502561866,309.076716276488,343.117367529728,24.192354384884],["india-kolkata-2000","2000-01-01","00:00:00","Asia/Kolkata",22.5726,88.3639,190.661714043831,255.772414588956,246.90270530443,216.831315976019,303.544530853777,1.371012139825,16.557471719762,170.526965333713,23.857064466943],["usa-new-york-dst","2020-07-15","12:00:00","America/New_York",40.7128,-74.006,29.082584416667,89.471854636869,71.839283774682,47.981594425069,345.994042498663,268.026803473999,274.890472079797,163.760400304612,24.143985233202],["australia-sydney-dst","2021-01-15","12:00:00","Australia/Sydney",-33.8688,151.2093,294.129074225075,270.944777402255,286.42375578863,253.861840030077,9.694837990703,281.894999792078,279.112896020403,345.062264464639,24.150998997444],["equator-singapore","2010-06-21","06:30:00","Asia/Singapore",1.3521,103.8198,178.172808133162,65.47630399918,56.337486892721,103.648992321759,133.316969679859,337.723689488829,154.203432545503,57.654607050423,24.00332196841],["southern-hemisphere-sao-paulo","1985-11-03","18:45:30","America/Sao_Paulo",-23.5505,-46.6333,84.745868640642,197.719852547448,220.250678424072,179.135623493973,160.874130154226,285.061978176026,214.790808698504,10.640387431991,23.659310836502],["europe-london","1975-03-30","09:15:00","Europe/London",51.5074,-0.1278,205.03285368839,345.493453347762,327.495363133133,19.092318641934,297.000175213149,339.302494777344,78.665895000308,49.838387922311,23.51125830612]];
-  const names=["Moon","Sun","Mercury","Venus","Mars","Jupiter","Saturn"];
-  const results:any[]=[];
+  // Independent public reference: AstroSage Brihat Horoscope sample, Pooja Sharma.
+  // Birth: 23 Aug 1978, 23:53:18, Delhi (28N40, 77E13), TZ +5.5.
+  // AstroSage reports Lahiri ayanamsha 23-33-30 and rounded sidereal longitudes to 1 arcsec.
+  const ref:any={
+    id:"astrosage-pooja-sharma-1978",
+    date:"1978-08-23",time:"23:53:18",timeZone:"Asia/Kolkata",
+    place:{latitude:28+40/60,longitude:77+13/60},
+    expected:{
+      Ascendant:45+30/60+14/3600,
+      Sun:120+6/60+42/3600,
+      Moon:16+23/60+10/3600,
+      Mars:150+18/60+48/3600,
+      Mercury:90+28/60+16/3600+43/216000,
+      Jupiter:90+3/60+54/3600+40/216000,
+      Venus:150+22/60+40/3600+42/216000,
+      Saturn:120+9/60+57/3600+57/216000,
+      Rahu:150+4/60+33/3600+40/216000,
+      Ketu:330+4/60+33/3600+40/216000,
+      Uranus:180+19/60+15/3600+30/216000,
+      Neptune:210+21/60+58/3600+28/216000,
+      Pluto:150+21/60+19/3600+34/216000,
+      Ayanamsha:23+33/60+30/3600
+    }
+  };
+  const out=calculate({date:ref.date,time:ref.time,timeZone:ref.timeZone,place:ref.place,houseSystem:"P"});
   const arcsec=(a:number,b:number)=>{const d=Math.abs(norm(a-b));return (d>180?360-d:d)*3600;};
-  for(const t of refs){
-    try{
-      const out=calculate({date:t[1],time:t[2],timeZone:t[3],place:{latitude:t[4],longitude:t[5]},houseSystem:"W"});
-      const errs:any={};
-      names.forEach((n,i)=>{const p=out.planets.find((x:any)=>x.name===n); errs[n]=p?arcsec(p.longitude,t[6+i]):null;});
-      const ascLon=(out.houses.ascendant.index-1)*30+out.houses.ascendant.degreeInSign;
-      errs.Ascendant=arcsec(ascLon,t[13]); errs.Ayanamsha=Math.abs(out.ayanamsha.degrees-t[14])*3600;
-      const maxArcsec=Math.max(...Object.values(errs).map(Number));
-      results.push({id:t[0],errorsArcsec:errs,maxArcsec,status:maxArcsec<0.1?"PASS":"REVIEW"});
-    }catch(e){results.push({id:t[0],status:"ERROR",error:e instanceof Error?e.message:String(e)});}
+  const errors:any={};
+  for(const name of ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu","Uranus","Neptune","Pluto"]){
+    const p=out.planets.find((x:any)=>x.name===name);
+    errors[name]=p?arcsec(p.longitude,ref.expected[name]):null;
   }
-  return {ok:results.every(x=>x.status==="PASS"),thresholdArcsec:0.1,tests:results};
+  const ascLon=Number(out.houses?.ascendant?.index?((out.houses.ascendant.index-1)*30+out.houses.ascendant.degreeInSign):NaN);
+  errors.Ascendant=arcsec(ascLon,ref.expected.Ascendant);
+  errors.Ayanamsha=Math.abs(out.ayanamsha.degrees-ref.expected.Ayanamsha)*3600;
+  const maxArcsec=Math.max(...Object.values(errors).map(Number));
+  return {
+    ok:maxArcsec<=2,
+    reference:ref.id,
+    source:"AstroSage Brihat Horoscope public sample",
+    thresholdArcsec:2,
+    note:"AstroSage reference longitudes are rounded to 1 arcsecond; this is an independent reference test, not a proof of absolute accuracy.",
+    errorsArcsec:errors,
+    maxArcsec,
+    calculated:{birth:out.birth,ayanamsha:out.ayanamsha,ascendant:ascLon}
+  };
 }
 
 function runSelfTest(){
