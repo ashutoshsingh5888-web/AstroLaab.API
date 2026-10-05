@@ -260,7 +260,7 @@ def run() -> int:
             )
             max_errors[name] = max(max_errors[name], error)
             if error > TOLERANCES_ARCSEC[name]:
-                bad.append(f"{name}={error:.3f}"")
+                bad.append(f"{name}={error:.3f} arcsec")
 
         moon = body.get("moon", {})
         if moon.get("sign", {}).get("index") != ref["moonSignIndex"]:
