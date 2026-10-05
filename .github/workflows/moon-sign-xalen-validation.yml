@@ -1,0 +1,31 @@
+name: Moon Sign XALEN Cross Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/moon-sign/**"
+      - ".github/workflows/moon-sign-xalen-validation.yml"
+  workflow_dispatch:
+
+jobs:
+  xalen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run XALEN secondary cross-check
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/validate-xalen.py
