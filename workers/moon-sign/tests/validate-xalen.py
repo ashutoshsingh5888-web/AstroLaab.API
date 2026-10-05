@@ -48,7 +48,7 @@ def fetch_worker(case: dict) -> dict:
     req = urllib.request.Request(
         ENDPOINT,
         data=json.dumps(payload).encode(),
-        headers={"content-type": "application/json"},
+        headers={"content-type": "application/json", "origin": "https://astrolaab.com", "user-agent": "AstroLaab-Accuracy/1.0"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=20) as response:
