@@ -291,7 +291,7 @@ def run() -> int:
 
     print("\nMaximum observed errors (arcsec):")
     for name, value in max_errors.items():
-        print(f"  {name}: {value:.6f}" (limit {TOLERANCES_ARCSEC[name]:.1f}")")
+        print(f"  {name}: {value:.6f} arcsec (limit {TOLERANCES_ARCSEC[name]:.1f} arcsec)")
 
     if failures:
         print(f"\nFAILED: {failures}/{len(cases)} cases")
