@@ -1,0 +1,16 @@
+{
+  "name": "astrolaab-moon-sign-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "dry-run": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@fusionstrings/panchangam": "npm:@jsr/fusionstrings__panchangam@0.2.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
