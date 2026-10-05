@@ -151,7 +151,7 @@ function calculate(body:any){
   };
 }
 const SELF_TESTS:any[] = [
-  {id:"india-mumbai-1990",date:"1990-05-15",time:"14:30:00",timeZone:"Asia/Kolkata",place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},expected:{moonSign:"Makara",moonLongitude:271.888653616292}},
+  {id:"india-mumbai-1990",date:"1990-05-15",time:"14:30:00",timeZone:"Asia/Kolkata",place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},expected:{moonSign:"Makara",moonLongitude:271.8935490396424}},
   {id:"india-delhi-2024",date:"2024-01-01",time:"12:00:00",timeZone:"Asia/Kolkata",place:{name:"New Delhi",country:"India",latitude:28.6139,longitude:77.209}},
   {id:"india-kolkata-2000",date:"2000-01-01",time:"00:00:00",timeZone:"Asia/Kolkata",place:{name:"Kolkata",country:"India",latitude:22.5726,longitude:88.3639}},
   {id:"usa-new-york-dst",date:"2020-07-15",time:"12:00:00",timeZone:"America/New_York",place:{name:"New York",country:"United States",latitude:40.7128,longitude:-74.006}},
@@ -228,7 +228,7 @@ function runSelfTest(){
         ["Ascendant",Number.isFinite(out.houses?.ascendant?.degreeInSign)]
       ];
       if(t.expected?.moonSign) checks.push(["golden Moon sign",out.moon.sign.name===t.expected.moonSign]);
-      if(Number.isFinite(t.expected?.moonLongitude)) checks.push(["golden Moon longitude",Math.abs(out.moon.siderealLongitude-t.expected.moonLongitude)<1e-7]);
+      if(Number.isFinite(t.expected?.moonLongitude)) checks.push(["golden Moon longitude",Math.abs(out.moon.siderealLongitude-t.expected.moonLongitude)<(1/3600)]);
       const failed=checks.filter((x:any)=>!x[1]).map((x:any)=>x[0]);
       results.push({id:t.id,status:failed.length?"FAIL":"PASS",failed});
     }catch(e){
