@@ -102,7 +102,13 @@ const DELTA_T_SECONDS: Record<number, number> = {
   2050:74.725642
 };
 
+const DELTA_T_SUPPORTED_MIN_YEAR = 1950;
+const DELTA_T_SUPPORTED_MAX_YEAR = 2050;
+
 function deltaT(year:number){
+  if(year < DELTA_T_SUPPORTED_MIN_YEAR || year > DELTA_T_SUPPORTED_MAX_YEAR){
+    throw new Error("birth year outside supported Delta-T range " + DELTA_T_SUPPORTED_MIN_YEAR + "-" + DELTA_T_SUPPORTED_MAX_YEAR);
+  }
   if(year>=2005 && year<=2050){
     const y0=Math.floor(year), f=year-y0;
     const a=DELTA_T_SECONDS[y0], b=DELTA_T_SECONDS[Math.min(2050,y0+1)] ?? a;
@@ -115,7 +121,7 @@ function deltaT(year:number){
   if(year<1961){t=year-1950;return 29.07+0.407*t-t**2/233+t**3/2547;}
   if(year<1986){t=year-1975;return 45.45+1.067*t-t**2/260-t**3/718;}
   if(year<2005){t=year-2000;return 63.86+0.3345*t-0.060374*t**2+0.0017275*t**3+0.000651814*t**4+0.00002373599*t**5;}
-  return DELTA_T_SECONDS[2050];
+  throw new Error("unreachable Delta-T branch");
 }
 
 function planetId(name:string){
@@ -158,7 +164,7 @@ function calculate(body:any){
   }
   const ayanamsaDeg=Number(ay);
   return {
-    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris",timeScales:{planets:"TT",houses:"UT",ayanamsha:"TT",deltaTSeconds:deltaT(decimalYear)}},
+    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris",supportedDeltaTYearRange:{min:DELTA_T_SUPPORTED_MIN_YEAR,max:DELTA_T_SUPPORTED_MAX_YEAR},timeScales:{planets:"TT",houses:"UT",ayanamsha:"TT",deltaTSeconds:deltaT(decimalYear)}},
     ayanamsha:{name:"Lahiri (Chitrapaksha)",mode:1,degrees:ayanamsaDeg},
     birth:{localDate:body.date,localTime:body.time,timeZone:body.timeZone,utcOffsetMinutes:u.offsetMinutes,utc:x.toISOString(),julianDayUT:jd,julianDayTT:jdTT},
     location:body.place?{name:body.place.name??null,country:body.place.country??null,latitude:Number(body.place.latitude),longitude:Number(body.place.longitude)}:null,
