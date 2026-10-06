@@ -201,6 +201,7 @@ def run() -> int:
     print(f"Cases: {len(cases)}")
 
     failures = 0
+    worker_swisseph_version = None
     max_errors: dict[str, float] = {k: 0.0 for k in TOLERANCES_ARCSEC}
 
     for case in cases:
@@ -220,6 +221,12 @@ def run() -> int:
             bad.append("swisseph-version")
         if body.get("engine") != "Swiss Ephemeris":
             bad.append("engine")
+        current_worker_version = body.get("swissephVersion")
+        if worker_swisseph_version is None:
+            worker_swisseph_version = current_worker_version
+            print(f"Worker Swiss Ephemeris version: {worker_swisseph_version}")
+        elif current_worker_version != worker_swisseph_version:
+            bad.append("swisseph-version-drift")
         if body.get("calculationProfile", {}).get("ayanamsha") != "Lahiri (Chitrapaksha)":
             bad.append("Lahiri")
         if body.get("calculationProfile", {}).get("timeScales", {}).get("planets") != "TT":
