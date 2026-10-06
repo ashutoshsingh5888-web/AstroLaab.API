@@ -24,7 +24,7 @@ def call(date: str):
     req = urllib.request.Request(
         ENDPOINT,
         data=json.dumps(payload).encode(),
-        headers={"content-type": "application/json", "origin": "https://astrolaab.com"},
+        headers={"content-type": "application/json", "origin": "https://astrolaab.com", "user-agent": "AstroLaab-API-Boundary/1.0", "accept": "application/json"},
         method="POST",
     )
     try:
