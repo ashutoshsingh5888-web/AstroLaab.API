@@ -26,8 +26,11 @@ jobs:
       - name: Install independent reference engine
         run: python -m pip install --disable-pip-version-check "pyswisseph==2.10.3.2"
 
-      - name: Allow Cloudflare deployment to settle
-        run: sleep 30
+      - name: Wait for live Worker deployment
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/wait-for-deployment.py
 
       - name: Run 50-case independent regression
         working-directory: workers/moon-sign
