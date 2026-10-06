@@ -2,32 +2,32 @@
   "schemaVersion": 1,
   "description": "Pinned public-platform regression fixture. The production Worker is not changed by this file. The fixture checks stable consumer-facing lunar semantics against popular Vedic platforms.",
   "case": {
-    "id": "public-amitabh-1942",
-    "date": "1942-10-11",
-    "time": "16:00:00",
+    "id": "public-sachin-1973",
+    "date": "1973-04-24",
+    "time": "14:25:00",
     "timeZone": "Asia/Kolkata",
     "place": {
-      "name": "Allahabad",
+      "name": "Mumbai",
       "country": "India",
-      "latitude": 25.95,
-      "longitude": 81.8333333333
+      "latitude": 18.966666666666665,
+      "longitude": 72.83333333333333
     },
     "sources": [
       {
         "name": "AstroSage",
-        "url": "https://www.astrosage.com/celebrity-horoscope/amitabh-bachchan-birth-chart.asp",
-        "moonLongitude": 190.9097222222,
-        "moonSign": "Libra",
-        "nakshatra": "Swati",
-        "pada": 2
+        "url": "https://celebrity.astrosage.com/sachin-tendulkar-birth-chart.asp",
+        "moonLongitude": 235.295,
+        "moonSign": "Sagittarius",
+        "nakshatra": "Purva Ashadha",
+        "pada": 4
       },
       {
         "name": "Drik Panchang",
-        "url": "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80020001",
-        "moonLongitude": 190.3086111111,
-        "moonSign": "Libra",
-        "nakshatra": "Swati",
-        "pada": 2
+        "url": "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80019001&lang=en",
+        "moonLongitude": 235.295,
+        "moonSign": "Sagittarius",
+        "nakshatra": "Purva Ashadha",
+        "pada": 4
       }
     ]
   }
