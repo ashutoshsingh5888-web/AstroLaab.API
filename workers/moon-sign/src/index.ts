@@ -139,7 +139,11 @@ function calculate(body:any){
   const x=u.date;
   const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
   const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
-  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;
+  const utcYear=x.getUTCFullYear();
+  if(utcYear < DELTA_T_SUPPORTED_MIN_YEAR || utcYear > DELTA_T_SUPPORTED_MAX_YEAR){
+    throw new Error("birth year outside supported Delta-T range " + DELTA_T_SUPPORTED_MIN_YEAR + "-" + DELTA_T_SUPPORTED_MAX_YEAR);
+  }
+  const decimalYear=utcYear+(x.getUTCMonth()+0.5)/12;
   const jdTT=jd+deltaT(decimalYear)/86400;
   const ay=get_ayanamsha(1,jdTT);
   // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
