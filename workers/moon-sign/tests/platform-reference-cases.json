@@ -40,21 +40,21 @@
       }
     },
     {
-      "id": "drik-amitabh-bachchan",
-      "url": "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80020001&lang=en",
-      "date": "1942-10-11",
-      "time": "16:00:00",
+      "id": "drik-sachin-tendulkar",
+      "url": "https://www.drikpanchang.com/jyotisha/kundali/kundali.html?kundali-id=80019001&lang=en",
+      "date": "1973-04-24",
+      "time": "13:00:00",
       "timeZone": "Asia/Kolkata",
       "place": {
-        "name": "Allahabad",
+        "name": "Mumbai",
         "country": "India",
-        "latitude": 25.95,
-        "longitude": 81.8333
+        "latitude": 19.076,
+        "longitude": 72.8777
       },
       "expected": {
-        "moonSign": "Libra",
-        "nakshatra": "Swati",
-        "pada": 2
+        "moonSign": "Sagittarius",
+        "nakshatra": "Purva Ashadha",
+        "pada": 4
       }
     }
   ],
