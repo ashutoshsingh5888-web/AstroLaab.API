@@ -295,6 +295,8 @@ def main() -> int:
     # Their expected lunar semantics come from the published pages; the URLs and
     # exact birth inputs are retained so the Worker is tested on identical data.
     drik = drik_cases[: int(FIXTURE.get("minimumDrikCases", len(drik_cases)))]
+    for case in drik:
+        case.setdefault("platform", "Drik Panchang")
 
     failures = 0
     hard_matches = 0
