@@ -9,6 +9,7 @@ on:
       - "tests/validate_full_chart.py"
       - "tests/validate_full_chart_platforms.py"
       - "tests/validate_chart_api_contract.py"
+      - "tests/validate_chart_api_contract_ci.py"
       - "workers/moon-sign/tests/independent-accuracy-cases.json"
       - "workers/moon-sign/tests/validate-platform-references.py"
       - "workers/moon-sign/tests/platform-reference-cases.json"
@@ -51,7 +52,7 @@ jobs:
         run: python -m compileall -q main.py engine tests
 
       - name: API contract
-        run: python tests/validate_chart_api_contract.py
+        run: python tests/validate_chart_api_contract_ci.py
 
       - name: 128-case Swiss oracle and boundary regression
         run: python tests/validate_full_chart.py
