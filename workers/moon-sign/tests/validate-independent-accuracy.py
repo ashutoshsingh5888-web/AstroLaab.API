@@ -209,8 +209,15 @@ def run() -> int:
 
         bad: list[str] = []
 
+        case_year = int(case["date"][:4])
+        if not (SUPPORTED_YEAR_MIN <= case_year <= SUPPORTED_YEAR_MAX):
+            bad.append("supported-year-range")
+
         if body.get("ok") is not True:
             bad.append("HTTP/ok")
+        worker_swisseph_version = worker_swisseph_version or body.get("swissephVersion")
+        if body.get("swissephVersion") is None:
+            bad.append("swisseph-version")
         if body.get("engine") != "Swiss Ephemeris":
             bad.append("engine")
         if body.get("calculationProfile", {}).get("ayanamsha") != "Lahiri (Chitrapaksha)":
@@ -219,6 +226,15 @@ def run() -> int:
             bad.append("planets=TT")
         if body.get("calculationProfile", {}).get("timeScales", {}).get("houses") != "UT":
             bad.append("houses=UT")
+
+        worker_delta_t = body.get("calculationProfile", {}).get("timeScales", {}).get("deltaTSeconds")
+        if not isinstance(worker_delta_t, (int, float)) or not math.isfinite(worker_delta_t):
+            bad.append("deltaTSeconds")
+        else:
+            delta_t_error = abs(float(worker_delta_t) - ref["deltaTSeconds"])
+            max_delta_t_error = max(max_delta_t_error, delta_t_error)
+            if delta_t_error > DELTA_T_TOLERANCE_SECONDS:
+                bad.append(f"deltaT={delta_t_error:.3f} s")
 
         birth = body.get("birth", {})
         if birth.get("utcOffsetMinutes") != ref["utcOffsetMinutes"]:
