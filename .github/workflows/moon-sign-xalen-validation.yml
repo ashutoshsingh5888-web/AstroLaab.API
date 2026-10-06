@@ -60,6 +60,12 @@ jobs:
           fi
           test "$(stat -c%s /tmp/de440s.bsp)" -gt 8000000
           sha256sum /tmp/de440s.bsp
+      - name: Wait for live Worker deployment
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/wait-for-deployment.py
+
       - name: Run XALEN secondary cross-check
         working-directory: workers/moon-sign
         env:
