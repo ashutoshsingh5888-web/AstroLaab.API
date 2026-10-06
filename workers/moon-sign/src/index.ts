@@ -106,7 +106,8 @@ const DELTA_T_SUPPORTED_MIN_YEAR = 1950;
 const DELTA_T_SUPPORTED_MAX_YEAR = 2050;
 
 function deltaT(year:number){
-  if(year < DELTA_T_SUPPORTED_MIN_YEAR || year > DELTA_T_SUPPORTED_MAX_YEAR){
+  const calendarYear=Math.floor(year);
+  if(calendarYear < DELTA_T_SUPPORTED_MIN_YEAR || calendarYear > DELTA_T_SUPPORTED_MAX_YEAR){
     throw new Error("birth year outside supported Delta-T range " + DELTA_T_SUPPORTED_MIN_YEAR + "-" + DELTA_T_SUPPORTED_MAX_YEAR);
   }
   if(year>=2005 && year<=2050){
