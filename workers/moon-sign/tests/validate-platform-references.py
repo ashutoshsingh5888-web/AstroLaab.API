@@ -291,7 +291,7 @@ def main() -> int:
     if len(astro) < astro_target:
         raise RuntimeError(f"Only {len(astro)} AstroSage references parsed; need {astro_target}")
 
-    if len(drik) < int(FIXTURE.get("minimumDrikCases", len(drik_cases))):
+    if len(drik_cases) < int(FIXTURE.get("minimumDrikCases", len(drik_cases))):
         raise RuntimeError("Not enough pinned Drik Panchang references")
 
     # Exactly three modern Drik Panchang references are pinned in the fixture.
