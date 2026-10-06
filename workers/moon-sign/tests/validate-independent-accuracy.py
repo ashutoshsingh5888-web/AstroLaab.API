@@ -32,23 +32,23 @@ ENDPOINT = os.environ.get(
 
 CASES_PATH = Path(__file__).with_name("independent-accuracy-cases.json")
 
-# Tight regression tolerances. The Moon gets a 5 arcsecond budget because the
-# embedded Swiss build and pyswisseph can differ by a few arcseconds on lunar
-# position while the independent JPL/XALEN geometry cross-check remains within 5 arcseconds.
-# All other bodies remain at 2 arcseconds.
+# Strict regression tolerances sized from the observed post-Delta-T-fix error.
+# These are deliberately much tighter than the old 5 arcsecond Moon gate.
 TOLERANCES_ARCSEC = {
-    "Sun": 2.0,
-    "Moon": 5.0,
-    "Mercury": 2.0,
-    "Venus": 2.0,
-    "Mars": 2.0,
-    "Jupiter": 2.0,
-    "Saturn": 2.0,
-    "Rahu": 2.0,
-    "Ketu": 2.0,
-    "Ascendant": 2.0,
-    "Ayanamsha": 2.0,
+    "Sun": 0.1,
+    "Moon": 0.5,
+    "Mercury": 0.1,
+    "Venus": 0.1,
+    "Mars": 0.1,
+    "Jupiter": 0.1,
+    "Saturn": 0.1,
+    "Rahu": 0.1,
+    "Ketu": 0.1,
+    "Ascendant": 1.0,
+    "Ayanamsha": 0.1,
 }
+
+DELTA_T_TOLERANCE_SECONDS = 0.5
 
 BODY_IDS = {
     "Sun": swe.SUN,
@@ -195,6 +195,8 @@ def run() -> int:
     cases_doc = json.loads(CASES_PATH.read_text(encoding="utf-8"))
     cases = cases_doc["cases"]
     print(f"Independent reference: pyswisseph {swe.version}")
+    print("Worker dependency contract: @fusionstrings/panchangam npm:@jsr/fusionstrings__panchangam@0.2.1")
+    print(f"Delta-T guard: <= {DELTA_T_TOLERANCE_SECONDS:.1f}s vs pyswisseph")
     print(f"Endpoint: {ENDPOINT}")
     print(f"Cases: {len(cases)}")
 
@@ -229,6 +231,15 @@ def run() -> int:
                 bad.append("UTC")
         except Exception:
             bad.append("UTC")
+
+        time_scales = body.get("calculationProfile", {}).get("timeScales", {})
+        worker_delta_t = time_scales.get("deltaTSeconds")
+        if not isinstance(worker_delta_t, (int, float)) or not math.isfinite(worker_delta_t):
+            bad.append("deltaTSeconds")
+        elif abs(float(worker_delta_t) - ref["deltaTSeconds"]) > DELTA_T_TOLERANCE_SECONDS:
+            bad.append(
+                f"deltaT={float(worker_delta_t):.3f}s vs ref={ref['deltaTSeconds']:.3f}s"
+            )
 
         actual_planets = planet_longitudes(body)
         expected = ref["expected"]
