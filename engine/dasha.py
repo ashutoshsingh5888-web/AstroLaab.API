@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 DASHA_SEQUENCE = [
     ("Ketu", 7),
@@ -69,14 +70,18 @@ def calculate_vimshottari_dasha(moon_longitude, birth_date):
 
         current_date = end_date
 
-    # Find current running dasha
-    today = birth_date
-    current_running = timeline[0]["planet"]
+    # Current running Mahadasha is evaluated for today's Indian calendar date.
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    current_running = None
 
     for period in timeline:
-        if str(today.date()) >= period["start"] and str(today.date()) <= period["end"]:
+        if period["start"] <= str(today) <= period["end"]:
             current_running = period["planet"]
             break
+
+    # If the birth is in the future, expose the first period rather than null.
+    if current_running is None and today < birth_date.date():
+        current_running = timeline[0]["planet"]
 
     return {
         "timeline": timeline,
