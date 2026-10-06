@@ -24,6 +24,7 @@ on:
       - "workers/moon-sign/tests/platform-reference-cases.json"
       - ".github/workflows/full-chart-accuracy.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
