@@ -201,7 +201,7 @@ def run() -> int:
     print(f"Delta-T guard: <= {DELTA_T_TOLERANCE_SECONDS:.1f}s vs pyswisseph")
     print(f"Endpoint: {ENDPOINT}")
     print(f"Cases: {len(cases)}")
-    print(f"Supported birth-year range: {supported_year_min}-{supported_year_max}")
+    print(f"Supported birth-year range: {SUPPORTED_YEAR_MIN_YEAR}-{SUPPORTED_YEAR_MAX_YEAR}")
 
     failures = 0
     worker_swisseph_version = None
