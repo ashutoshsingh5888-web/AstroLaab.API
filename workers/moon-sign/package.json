@@ -11,6 +11,6 @@
     "@fusionstrings/panchangam": "npm:@jsr/fusionstrings__panchangam@0.2.1"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "4.0.0"
   }
 }
