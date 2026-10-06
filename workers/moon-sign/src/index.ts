@@ -176,7 +176,18 @@ function calculate(body:any){
     moon:{siderealLongitude:moon.longitude,sign:moon.sign,degreeInSign:moon.sign.degreeInSign,degreeInSignDms:moon.sign.degreeInSignDms,nakshatra:{name:NAKSHATRAS[ni],index:ni+1,pada},navamsa:moon.navamsa},
     planets,
     houses,
-    boundaryWarning:moon.sign.degreeInSign<0.1||moon.sign.degreeInSign>29.9?"Moon is very close to a Rashi boundary. Recheck birth time and timezone.":null
+    boundaryWarning:(() => {
+      const rashiDistance=Math.min(moon.sign.degreeInSign,30-moon.sign.degreeInSign);
+      const nakSpan=360/27;
+      const nakOffset=moon.longitude%nakSpan;
+      const nakDistance=Math.min(nakOffset,nakSpan-nakOffset);
+      const padaSpan=360/108;
+      const padaOffset=moon.longitude%padaSpan;
+      const padaDistance=Math.min(padaOffset,padaSpan-padaOffset);
+      const nearest=Math.min(rashiDistance,nakDistance,padaDistance);
+      if(nearest<0.1) return "Moon is very close to a Rashi, Nakshatra, or Pada boundary. Recheck birth time and timezone.";
+      return null;
+    })()
   };
 }
 const SELF_TESTS:any[] = [
