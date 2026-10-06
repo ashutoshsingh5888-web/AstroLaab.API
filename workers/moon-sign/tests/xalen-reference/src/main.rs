@@ -18,6 +18,7 @@ struct OutputCase {
     id: String,
     planets: std::collections::BTreeMap<String, f64>,
     ayanamsa: f64,
+    delta_t_seconds: f64,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,6 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for case in cases {
         let jd_ut = JdUT1(case.jd_ut);
         let jd_tt = jd_ut.to_tt(&dt).0;
+        let delta_t_seconds = (jd_tt - jd_ut.0) * 86400.0;
         let ayanamsa = Ayanamsa::Lahiri.compute_deg(jd_tt);
 
         let mut planets = std::collections::BTreeMap::new();
@@ -64,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rahu = *planets.get("Rahu").ok_or("Rahu missing")?;
         planets.insert("Ketu".to_string(), (rahu + 180.0).rem_euclid(360.0));
 
-        out.push(OutputCase { id: case.id, planets, ayanamsa });
+        out.push(OutputCase { id: case.id, planets, ayanamsa, delta_t_seconds });
     }
 
     let path = PathBuf::from(output);
