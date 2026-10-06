@@ -275,7 +275,7 @@ def main() -> int:
     astro_target = int(FIXTURE.get("minimumAstroSageCases", 17))
     drik_cases = [dict(x) for x in FIXTURE["drikCases"]]
 
-    astro: list[dict] = []
+    astro: list[dict] = [dict(x) for x in FIXTURE.get("astroPinnedCases", []) if SUPPORTED_YEAR_MIN <= int(x["date"][:4]) <= SUPPORTED_YEAR_MAX]
     seeds = list(dict.fromkeys(FIXTURE["astroSageSeeds"] + discover_astrosage_urls()))
 
     for url in seeds:
