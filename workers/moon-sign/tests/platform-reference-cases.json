@@ -95,5 +95,79 @@
     "https://www.astrosage.com/sitemap.xml",
     "https://www.astrosage.com/celebrity-horoscope/sitemap.xml"
   ],
-  "minimumDrikCases": 3
+  "minimumDrikCases": 3,
+  "astroPinnedCases": [
+    {
+      "id": "astrosage-priyanka-gandhi",
+      "url": "https://celebrity.astrosage.com/priyanka-gandhi-birth-chart.asp",
+      "date": "1972-01-12",
+      "time": "17:05:00",
+      "timeZone": "Asia/Kolkata",
+      "place": {
+        "name": "Delhi",
+        "country": "India",
+        "latitude": 28.65,
+        "longitude": 77.2167
+      },
+      "expected": {
+        "moonSign": "Scorpio",
+        "nakshatra": "Anuradha",
+        "pada": 3
+      }
+    },
+    {
+      "id": "astrosage-priyanka-kothari",
+      "url": "https://celebrity.astrosage.com/priyanka-kothari-birth-chart.asp",
+      "date": "1983-11-30",
+      "time": "12:00:00",
+      "timeZone": "Asia/Kolkata",
+      "place": {
+        "name": "Calcutta",
+        "country": "India",
+        "latitude": 22.5,
+        "longitude": 88.3333
+      },
+      "expected": {
+        "moonSign": "Virgo",
+        "nakshatra": "Hasta",
+        "pada": 4
+      }
+    },
+    {
+      "id": "astrosage-priya-dutt",
+      "url": "https://celebrity.astrosage.com/priya-dutt-birth-chart.asp",
+      "date": "1966-08-28",
+      "time": "12:00:00",
+      "timeZone": "Asia/Kolkata",
+      "place": {
+        "name": "Mumbai",
+        "country": "India",
+        "latitude": 18.9667,
+        "longitude": 72.8333
+      },
+      "expected": {
+        "moonSign": "Capricorn",
+        "nakshatra": "Shravana",
+        "pada": 1
+      }
+    },
+    {
+      "id": "astrosage-priyanka-chaturvedi",
+      "url": "https://celebrity.astrosage.com/priyanka-chaturvedi-birth-chart.asp",
+      "date": "1979-11-19",
+      "time": "00:00:00",
+      "timeZone": "Asia/Kolkata",
+      "place": {
+        "name": "Mumbai",
+        "country": "India",
+        "latitude": 18.9667,
+        "longitude": 72.8333
+      },
+      "expected": {
+        "moonSign": "Libra",
+        "nakshatra": "Vishakha",
+        "pada": 1
+      }
+    }
+  ]
 }
