@@ -1,6 +1,7 @@
 import {
   calculate_nakshatra,
   calculate_houses,
+  calculate_planets,
   calc_ut,
   get_ayanamsha,
   get_swisseph_version,
@@ -116,30 +117,14 @@ function calculate(body:any){
   const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;
   const jdTT=jd+deltaT(decimalYear)/86400;
   const ay=get_ayanamsha(1,jdTT);
-  // Use Swiss Ephemeris' explicit UT API for planetary positions. This keeps
-  // the production chart on the same UT/TT conversion contract as the independent
-  // pyswisseph reference and avoids mixing a TT input with a calc_ut-style API.
-  const PLANETS = [
-    [0, "Sun"], [1, "Moon"], [2, "Mercury"], [3, "Venus"],
-    [4, "Mars"], [5, "Jupiter"], [6, "Saturn"], [10, "Rahu"],
-  ] as const;
-  const SEFLG_SWIEPH = 2;
-  const SEFLG_SPEED = 256;
-  const SEFLG_SIDEREAL = 65536;
-  const planetsRaw = PLANETS.map(([id,name]) => {
-    const p = calc_ut(jd, id, SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_SIDEREAL) as any;
-    const longitude = norm(Number(p.longitude));
-    const sign = signOf(longitude);
-    return {
-      id,
-      name,
-      longitude,
-      latitude:Number(p.latitude??0),
-      speed:Number(p.speed_long??p.speed??0),
-      retrograde:Number(p.speed_long??p.speed??0)<0,
-      sign,
-      navamsa:divisionalSign(longitude,9),
-    };
+  // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
+  // sidereal path: it calculates with Swiss Ephemeris and subtracts the requested
+  // ayanamsha consistently for all supported Vedic planets.
+  const planetsRaw=calculate_planets(jdTT,1) as any[];
+  const planets=planetsRaw.map((p:any)=>{
+    const longitude=norm(Number(p.longitude));
+    const s=signOf(longitude);
+    return {id:Number(p.id),name:p.name,longitude,latitude:Number(p.latitude??0),speed:Number(p.speed??0),retrograde:Boolean(p.is_retrograde),sign:s,navamsa:divisionalSign(longitude,9)};
   });
   const moon=planets.find((p:any)=>p.id===1);
   if(!moon) throw new Error("Moon position unavailable");
