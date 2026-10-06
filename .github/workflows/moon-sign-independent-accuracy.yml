@@ -32,7 +32,7 @@ jobs:
           ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
         run: python tests/wait-for-deployment.py
 
-      - name: Run 50-case independent regression
+      - name: Run 128-case independent regression
         working-directory: workers/moon-sign
         env:
           ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
