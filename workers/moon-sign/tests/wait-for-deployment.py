@@ -19,7 +19,7 @@ for attempt in range(1, 19):
         req = urllib.request.Request(
             ENDPOINT,
             data=json.dumps(PAYLOAD).encode(),
-            headers={"content-type": "application/json", "origin": "https://astrolaab.com"},
+            headers={"content-type": "application/json", "origin": "https://astrolaab.com", "user-agent": "AstroLaab-Readiness/1.0", "accept": "application/json"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=15) as response:
