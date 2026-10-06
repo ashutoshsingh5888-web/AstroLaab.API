@@ -120,6 +120,7 @@ def main() -> int:
         max_absolute_error = 0.0
         max_relative_error = 0.0
         max_sun_frame_offset = 0.0
+        max_delta_t_difference = 0.0
         body_names = [
             "Sun", "Moon", "Mercury", "Venus",
             "Mars", "Jupiter", "Saturn", "Rahu", "Ketu",
@@ -129,6 +130,10 @@ def main() -> int:
             cid = case["id"]
             body = workers[cid]
             xr = xalen[cid]
+            worker_delta_t = body.get("calculationProfile", {}).get("timeScales", {}).get("deltaTSeconds")
+            xalen_delta_t = xr.get("delta_t_seconds")
+            if isinstance(worker_delta_t, (int, float)) and isinstance(xalen_delta_t, (int, float)):
+                max_delta_t_difference = max(max_delta_t_difference, abs(float(worker_delta_t) - float(xalen_delta_t)))
             worker_by_name = {
                 str(p.get("name")): float(p["longitude"])
                 for p in body.get("planets", [])
@@ -195,7 +200,13 @@ def main() -> int:
         print(f"Maximum absolute Worker-vs-XALEN difference: {max_absolute_error:.6f} arcsec")
         print(f"Maximum common Sun-frame offset: {max_sun_frame_offset:.6f} arcsec")
         print(f"Maximum body-vs-Sun relative error: {max_relative_error:.6f} arcsec")
+        print(f"Maximum Worker-vs-XALEN Delta-T model difference: {max_delta_t_difference:.6f} s")
         print(f"Moon bucket boundary review cases: {boundary_review_cases}")
+        print(
+            "The XALEN geometry oracle uses Stephenson-Morrison-Hohenkerk 2016 Delta-T; "
+            "Worker uses its Swiss-aligned table. Relative-geometry differences can therefore "
+            "include time-scale model differences in addition to ephemeris/frame conventions."
+        )
         print(
             "DE440 kernel provenance is hard-gated separately; discrete Rashi/"
             "Nakshatra/Pada differences near a boundary are diagnostic review items, "
