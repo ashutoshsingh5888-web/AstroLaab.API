@@ -1,0 +1,59 @@
+name: Full Birth Chart Accuracy Gates
+
+on:
+  push:
+    paths:
+      - "main.py"
+      - "engine/**"
+      - "requirements.txt"
+      - "tests/validate_full_chart.py"
+      - "tests/validate_full_chart_platforms.py"
+      - "tests/validate_chart_api_contract.py"
+      - "workers/moon-sign/tests/independent-accuracy-cases.json"
+      - "workers/moon-sign/tests/validate-platform-references.py"
+      - "workers/moon-sign/tests/platform-reference-cases.json"
+      - ".github/workflows/full-chart-accuracy.yml"
+  pull_request:
+    paths:
+      - "main.py"
+      - "engine/**"
+      - "requirements.txt"
+      - "tests/**"
+      - "workers/moon-sign/tests/independent-accuracy-cases.json"
+      - "workers/moon-sign/tests/validate-platform-references.py"
+      - "workers/moon-sign/tests/platform-reference-cases.json"
+      - ".github/workflows/full-chart-accuracy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  accuracy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile Python API
+        run: python -m compileall -q main.py engine tests
+
+      - name: API contract
+        run: python tests/validate_chart_api_contract.py
+
+      - name: 128-case Swiss oracle and boundary regression
+        run: python tests/validate_full_chart.py
+
+      - name: 20-case AstroSage and Drik compatibility
+        run: python tests/validate_full_chart_platforms.py
