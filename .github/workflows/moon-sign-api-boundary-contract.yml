@@ -1,0 +1,36 @@
+name: Moon Sign API Boundary Contract
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "workers/moon-sign/**"
+      - ".github/workflows/moon-sign-api-boundary-contract.yml"
+  workflow_dispatch:
+
+jobs:
+  boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Wait for live Worker deployment
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/wait-for-deployment.py
+
+      - name: Validate 1950 and 2050 API boundaries
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/validate-api-boundaries.py
