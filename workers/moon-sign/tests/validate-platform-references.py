@@ -112,7 +112,7 @@ def parse_coords(text: str) -> tuple[float, float]:
 def parse_astrosage(url: str, raw: str) -> dict | None:
     text = strip_text(raw)
     date_m = re.search(
-        r"Date of Birth\s*:\s*(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4})",
+        r"Date of Birth\s*:\s*(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s*)?([A-Z][a-z]+\s+\d{1,2},\s+\d{4})",
         text,
         re.I,
     )
