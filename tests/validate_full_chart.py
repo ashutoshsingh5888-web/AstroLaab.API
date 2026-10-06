@@ -59,7 +59,8 @@ def oracle(case: dict) -> dict:
 
     out["Ketu"] = norm(out["Rahu"] + 180.0)
     out["Ascendant"] = norm(float(swe.houses_ex(
-        jd, swe.FLG_SIDEREAL, case["place"]["latitude"], case["place"]["longitude"]
+        jd, case["place"]["latitude"], case["place"]["longitude"],
+        b"W", swe.FLG_SIDEREAL
     )[1][0]))
     out["jdUT"] = jd
     return out
