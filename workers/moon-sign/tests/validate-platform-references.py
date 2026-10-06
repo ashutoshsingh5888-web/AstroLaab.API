@@ -320,17 +320,17 @@ def main() -> int:
             # even when Rashi/Nakshatra agree.
             if actual[:2] != expected[:2]:
                 failures += 1
-                print(f"FAIL {case['platform']} {case['id']}: expected={expected} actual={actual}")
+                print(f"FAIL {case.get('platform', 'AstroSage')} {case['id']}: expected={expected} actual={actual}")
                 return
             hard_matches += 1
             if actual[2] != expected[2]:
                 pada_reviews += 1
-                print(f"REVIEW {case['platform']} {case['id']}: pada expected={expected[2]} actual={actual[2]} (Rashi/Nakshatra match)")
+                print(f"REVIEW {case.get('platform', 'AstroSage')} {case['id']}: pada expected={expected[2]} actual={actual[2]} (Rashi/Nakshatra match)")
             else:
-                print(f"PASS {case['platform']} {case['id']}: {actual}")
+                print(f"PASS {case.get('platform', 'AstroSage')} {case['id']}: {actual}")
         except Exception as exc:
             failures += 1
-            print(f"ERROR {case['platform']} {case['id']}: {exc}")
+            print(f"ERROR {case.get('platform', 'AstroSage')} {case['id']}: {exc}")
 
     for case in astro:
         check_case(case)
