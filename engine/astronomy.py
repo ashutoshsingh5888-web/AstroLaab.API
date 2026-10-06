@@ -1,10 +1,5 @@
 import swisseph as swe
 
-# ----------------------------------------------------
-# Swiss Ephemeris Configuration
-# ----------------------------------------------------
-
-# Use Lahiri Ayanamsa (SIDEREAL)
 swe.set_sid_mode(swe.SIDM_LAHIRI)
 
 SIGNS = [
@@ -12,6 +7,7 @@ SIGNS = [
     "Leo", "Virgo", "Libra", "Scorpio",
     "Sagittarius", "Capricorn", "Aquarius", "Pisces"
 ]
+ZODIAC_SIGNS = SIGNS
 
 PLANETS = {
     "Sun": swe.SUN,
@@ -21,83 +17,73 @@ PLANETS = {
     "Jupiter": swe.JUPITER,
     "Venus": swe.VENUS,
     "Saturn": swe.SATURN,
-    "Rahu": swe.TRUE_NODE
+    "Rahu": swe.TRUE_NODE,
 }
 
-# ----------------------------------------------------
-# Helpers
-# ----------------------------------------------------
+def normalize_longitude(longitude: float) -> float:
+    return longitude % 360.0
 
-def zodiac_from_longitude(longitude):
-    sign_index = int(longitude // 30)
-    degree = longitude % 30
-    return SIGNS[sign_index], round(degree, 2)
-
-# ----------------------------------------------------
-# Main Chart Calculator
-# ----------------------------------------------------
+def zodiac_from_longitude(longitude: float):
+    longitude = normalize_longitude(longitude)
+    sign_index = min(11, int(longitude // 30))
+    degree = longitude - sign_index * 30.0
+    return SIGNS[sign_index], round(degree, 8)
 
 def calculate_chart(year, month, day, hour, latitude, longitude):
     """
-    Main astrology engine function.
-    All calculations are SIDEREAL (Lahiri).
+    Calculate a Lahiri sidereal birth chart.
+    The hour argument is UTC decimal hours; the API layer converts local IST.
     """
-
-    # Set observer location
     swe.set_topo(longitude, latitude, 0)
-
-    # Julian Day (UT)
-    jd = swe.julday(year, month, day, hour)
+    jd_ut = swe.julday(year, month, day, hour)
 
     planets_data = {}
+    rahu_long = None
 
-    # -----------------------------
-    # Planetary Positions (Sidereal)
-    # -----------------------------
     for name, planet_id in PLANETS.items():
-        position = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL)
-        longitude_value = position[0][0]
+        position, _retflags = swe.calc_ut(jd_ut, planet_id, swe.FLG_SIDEREAL)
+        longitude_value = normalize_longitude(float(position[0]))
 
-        # Store Rahu for Ketu calculation
         if name == "Rahu":
             rahu_long = longitude_value
-            ketu_long = (rahu_long + 180) % 360
 
         sign, degree = zodiac_from_longitude(longitude_value)
-
         planets_data[name] = {
             "sign": sign,
             "degree": degree,
-            "longitude": round(longitude_value, 4)
+            "longitude": round(longitude_value, 8),
         }
 
-    # -----------------------------
-    # Ketu (Opposite Rahu)
-    # -----------------------------
+    if rahu_long is None:
+        raise RuntimeError("Rahu position unavailable")
+
+    ketu_long = normalize_longitude(rahu_long + 180.0)
     ketu_sign, ketu_degree = zodiac_from_longitude(ketu_long)
     planets_data["Ketu"] = {
         "sign": ketu_sign,
         "degree": ketu_degree,
-        "longitude": round(ketu_long, 4)
+        "longitude": round(ketu_long, 8),
     }
 
-    # -----------------------------
-    # Ascendant (SIDEREAL — FINAL FIX)
-houses = swe.houses_ex(
-    jd,
-    swe.FLG_SIDEREAL,
-    latitude,
-    longitude
-)
-
-ascendant_longitude = houses[1][0]   # <-- THIS IS ASC
-asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
+    houses = swe.houses_ex(
+        jd_ut,
+        swe.FLG_SIDEREAL,
+        latitude,
+        longitude,
+    )
+    ascendant_longitude = normalize_longitude(float(houses[1][0]))
+    asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
 
     return {
         "Ascendant": {
             "sign": asc_sign,
             "degree": asc_degree,
-            "longitude": round(ascendant_longitude, 4)
+            "longitude": round(ascendant_longitude, 8),
         },
-        "Planets": planets_data
+        "Planets": planets_data,
+        "meta": {
+            "julianDayUT": jd_ut,
+            "ayanamsa": "Lahiri",
+            "timeScale": "UT",
+        },
     }
