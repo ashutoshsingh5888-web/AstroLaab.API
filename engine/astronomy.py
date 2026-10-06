@@ -67,9 +67,10 @@ def calculate_chart(year, month, day, hour, latitude, longitude):
 
     houses = swe.houses_ex(
         jd_ut,
-        swe.FLG_SIDEREAL,
         latitude,
         longitude,
+        b"W",
+        swe.FLG_SIDEREAL,
     )
     ascendant_longitude = normalize_longitude(float(houses[1][0]))
     asc_sign, asc_degree = zodiac_from_longitude(ascendant_longitude)
