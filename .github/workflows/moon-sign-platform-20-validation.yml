@@ -23,6 +23,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Wait for live Worker deployment
+        working-directory: workers/moon-sign
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/wait-for-deployment.py
+
       - name: Run 20 public platform references
         working-directory: workers/moon-sign
         env:
