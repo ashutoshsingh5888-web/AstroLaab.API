@@ -206,6 +206,7 @@ def run() -> int:
     failures = 0
     worker_swisseph_version = None
     max_errors: dict[str, float] = {k: 0.0 for k in TOLERANCES_ARCSEC}
+    max_delta_t_error = 0.0
 
     for case in cases:
         ref = reference_chart(case)
