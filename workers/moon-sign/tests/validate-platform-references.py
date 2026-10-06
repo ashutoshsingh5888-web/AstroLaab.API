@@ -17,6 +17,9 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+SUPPORTED_YEAR_MIN = 1950
+SUPPORTED_YEAR_MAX = 2050
+
 ENDPOINT = os.environ.get(
     "ASTROLAAB_ENDPOINT",
     "https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart",
@@ -280,7 +283,7 @@ def main() -> int:
             break
         try:
             case = parse_astrosage(url, fetch(url))
-            if case and not any(x["url"] == case["url"] for x in astro):
+            if case and SUPPORTED_YEAR_MIN <= int(case["date"][:4]) <= SUPPORTED_YEAR_MAX and not any(x["url"] == case["url"] for x in astro):
                 astro.append(case)
         except Exception as exc:
             print(f"SKIP AstroSage {url}: {exc}")
@@ -288,13 +291,13 @@ def main() -> int:
     if len(astro) < astro_target:
         raise RuntimeError(f"Only {len(astro)} AstroSage references parsed; need {astro_target}")
 
-    if len(drik_cases) < int(FIXTURE.get("minimumDrikCases", len(drik_cases))):
+    if len(drik) < int(FIXTURE.get("minimumDrikCases", len(drik_cases))):
         raise RuntimeError("Not enough pinned Drik Panchang references")
 
     # Exactly three modern Drik Panchang references are pinned in the fixture.
     # Their expected lunar semantics come from the published pages; the URLs and
     # exact birth inputs are retained so the Worker is tested on identical data.
-    drik = drik_cases[: int(FIXTURE.get("minimumDrikCases", len(drik_cases)))]
+    drik = [x for x in drik_cases if SUPPORTED_YEAR_MIN <= int(x["date"][:4]) <= SUPPORTED_YEAR_MAX][: int(FIXTURE.get("minimumDrikCases", len(drik_cases)))]
     for case in drik:
         case.setdefault("platform", "Drik Panchang")
 
