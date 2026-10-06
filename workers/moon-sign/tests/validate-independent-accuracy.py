@@ -96,13 +96,13 @@ def reference_chart(case: dict) -> dict:
     delta_t_seconds = swe.deltat(jd_ut) * 86400.0
     jd_tt = jd_ut + delta_t_seconds / 86400.0
 
-    ay_tt = swe.get_ayanamsa_ut(jd_tt)
-    ay_ut = swe.get_ayanamsa_ut(jd_ut)
+    ay_tt = swe.get_ayanamsa_ut(jd_ut)
+    ay_ut = ay_tt
 
     expected: dict[str, float] = {}
     for name, body_id in BODY_IDS.items():
-        values, _ = swe.calc(jd_tt, body_id, swe.FLG_SWIEPH | swe.FLG_SPEED)
-        expected[name] = (values[0] - ay_tt) % 360.0
+        values, _ = swe.calc_ut(jd_ut, body_id, swe.FLG_SWIEPH | swe.FLG_SPEED | swe.FLG_SIDEREAL)
+        expected[name] = values[0] % 360.0
 
     expected["Ketu"] = (expected["Rahu"] + 180.0) % 360.0
 
@@ -114,7 +114,7 @@ def reference_chart(case: dict) -> dict:
         0,
     )
     expected["Ascendant"] = (ascmc[0] - ay_ut) % 360.0
-    expected["Ayanamsha"] = ay_tt
+    expected["Ayanamsha"] = ay_ut
 
     moon_lon = expected["Moon"]
     moon_sign_index = int(math.floor(moon_lon / 30.0)) + 1
