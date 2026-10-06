@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from datetime import datetime
+from pydantic import BaseModel, Field, model_validator
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import os
 import traceback
 import secrets
@@ -117,6 +118,14 @@ class ChartRequest(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     chart_style: str = Field("north", pattern="^(north|south)$")
 
+    @model_validator(mode="after")
+    def validate_calendar_date(self):
+        try:
+            datetime(self.year, self.month, self.day, self.hour, self.minute)
+        except ValueError as exc:
+            raise ValueError("invalid calendar date/time") from exc
+        return self
+
 # ====================================================
 # Health
 # ====================================================
@@ -140,23 +149,37 @@ def generate_chart(
     _: None = Depends(verify_api_key)
 ):
     try:
-        # ✅ USE LOCAL IST TIME DIRECTLY (NO UTC CONVERSION)
-        decimal_hour = payload.hour + payload.minute / 60
-
-        chart_data = calculate_chart(
+        # Inputs are declared IST. Convert once at the API boundary, then keep
+        # all Swiss Ephemeris calculations on UT.
+        local_dt = datetime(
             payload.year,
             payload.month,
             payload.day,
-            decimal_hour,
+            payload.hour,
+            payload.minute,
+            tzinfo=ZoneInfo("Asia/Kolkata"),
+        )
+        utc_dt = local_dt.astimezone(timezone.utc)
+        utc_decimal_hour = (
+            utc_dt.hour
+            + utc_dt.minute / 60
+            + utc_dt.second / 3600
+        )
+
+        chart_data = calculate_chart(
+            utc_dt.year,
+            utc_dt.month,
+            utc_dt.day,
+            utc_decimal_hour,
             payload.latitude,
             payload.longitude
         )
 
         panchang_data = calculate_panchang(
-            payload.year,
-            payload.month,
-            payload.day,
-            decimal_hour
+            utc_dt.year,
+            utc_dt.month,
+            utc_dt.day,
+            utc_decimal_hour
         )
 
         dasha_data = calculate_vimshottari_dasha(
@@ -169,9 +192,11 @@ def generate_chart(
         return {
             "meta": {
                 "api_version": "v1.0.1",
-                "input_timezone": "IST",
-                "timezone_conversion": "none",
-                "ayanamsa": "Lahiri"
+                "input_timezone": "Asia/Kolkata (IST)",
+                "timezone_conversion": "IST local time converted to UTC before Swiss Ephemeris",
+                "ayanamsa": "Lahiri",
+                "time_scales": {"planets": "UT input to Swiss Ephemeris", "houses": "UT"},
+                "utc": utc_dt.isoformat()
             },
             "Ascendant": chart_data["Ascendant"],
             "Planets": chart_data["Planets"],
