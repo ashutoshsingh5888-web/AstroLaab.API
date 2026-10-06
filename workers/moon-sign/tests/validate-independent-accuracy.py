@@ -49,6 +49,8 @@ TOLERANCES_ARCSEC = {
 }
 
 DELTA_T_TOLERANCE_SECONDS = 0.5
+SUPPORTED_YEAR_MIN = 1950
+SUPPORTED_YEAR_MAX = 2050
 
 BODY_IDS = {
     "Sun": swe.SUN,
@@ -216,7 +218,6 @@ def run() -> int:
 
         if body.get("ok") is not True:
             bad.append("HTTP/ok")
-        worker_swisseph_version = worker_swisseph_version or body.get("swissephVersion")
         if body.get("swissephVersion") is None:
             bad.append("swisseph-version")
         if body.get("engine") != "Swiss Ephemeris":
