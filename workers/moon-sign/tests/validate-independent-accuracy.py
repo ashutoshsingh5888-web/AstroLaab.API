@@ -49,8 +49,8 @@ TOLERANCES_ARCSEC = {
 }
 
 DELTA_T_TOLERANCE_SECONDS = 0.5
-SUPPORTED_YEAR_MIN = 1950
-SUPPORTED_YEAR_MAX = 2050
+SUPPORTED_YEAR_MIN_YEAR = 1950
+SUPPORTED_YEAR_MAX_YEAR = 2050
 
 BODY_IDS = {
     "Sun": swe.SUN,
@@ -213,7 +213,7 @@ def run() -> int:
         bad: list[str] = []
 
         case_year = int(case["date"][:4])
-        if not (SUPPORTED_YEAR_MIN <= case_year <= SUPPORTED_YEAR_MAX):
+        if not (SUPPORTED_YEAR_MIN_YEAR <= case_year <= SUPPORTED_YEAR_MAX_YEAR):
             bad.append("supported-year-range")
 
         if body.get("ok") is not True:
