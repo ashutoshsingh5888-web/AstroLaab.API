@@ -215,6 +215,49 @@ export function nutationLongitudeArcsec(jdTT: number): number {
   return sum * 0.0001;
 }
 
+// ------------------------------------------------------------- nutation
+// IAU 1980 nutation in longitude (Meeus, Astronomical Algorithms, table 22.A,
+// the 46 largest terms). Swiss Ephemeris' native sidereal mode removes nutation:
+// sidereal = true-of-date tropical - (mean ayanamsha + nutation in longitude).
+// The ephemeris wrapper only subtracts the MEAN ayanamsha, so every longitude it
+// returns is off by this value (up to about 18 arcsec). Tests pin this series
+// to swe.calc(ECL_NUT) over 1949-2051.
+// Columns: D, M, M', F, Omega, sine coefficient (0.0001"), sine coefficient per century.
+const NUTATION_TERMS: number[][] = [
+  [0, 0, 0, 0, 1, -171996, -174.2], [-2, 0, 0, 2, 2, -13187, -1.6], [0, 0, 0, 2, 2, -2274, -0.2],
+  [0, 0, 0, 0, 2, 2062, 0.2], [0, 1, 0, 0, 0, 1426, -3.4], [0, 0, 1, 0, 0, 712, 0.1],
+  [-2, 1, 0, 2, 2, -517, 1.2], [0, 0, 0, 2, 1, -386, -0.4], [0, 0, 1, 2, 2, -301, 0],
+  [-2, -1, 0, 2, 2, 217, -0.5], [-2, 0, 1, 0, 0, -158, 0], [-2, 0, 0, 2, 1, 129, 0.1],
+  [0, 0, -1, 2, 2, 123, 0], [2, 0, 0, 0, 0, 63, 0], [0, 0, 1, 0, 1, 63, 0.1],
+  [2, 0, -1, 2, 2, -59, 0], [0, 0, -1, 0, 1, -58, -0.1], [0, 0, 1, 2, 1, -51, 0],
+  [-2, 0, 2, 0, 0, 48, 0], [0, 0, -2, 2, 1, 46, 0], [2, 0, 0, 2, 2, -38, 0],
+  [0, 0, 2, 2, 2, -31, 0], [0, 0, 2, 0, 0, 29, 0], [-2, 0, 1, 2, 2, 29, 0],
+  [0, 0, 0, 2, 0, 26, 0], [-2, 0, 0, 2, 0, -22, 0], [0, 0, -1, 2, 1, 21, 0],
+  [0, 2, 0, 0, 0, 17, -0.1], [2, 0, -1, 0, 1, 16, 0], [-2, 2, 0, 2, 2, -16, 0.1],
+  [0, 1, 0, 0, 1, -15, 0], [-2, 0, 1, 0, 1, -13, 0], [0, -1, 0, 0, 1, -12, 0],
+  [0, 0, 2, -2, 0, 11, 0], [2, 0, -1, 2, 1, -10, 0], [2, 0, 1, 2, 2, -8, 0],
+  [0, 1, 0, 2, 2, 7, 0], [-2, 1, 1, 0, 0, -7, 0], [0, -1, 0, 2, 2, -7, 0],
+  [2, 0, 0, 2, 1, -7, 0], [2, 0, 1, 0, 0, 6, 0], [-2, 0, 2, 2, 2, 6, 0],
+  [-2, 0, 1, 2, 1, 6, 0], [2, 0, -2, 0, 1, -6, 0], [2, 0, 0, 0, 1, -6, 0],
+];
+
+// Nutation in longitude, arcseconds, for a Julian Day in TT.
+export function nutationLongitudeArcsec(jdTT: number): number {
+  const T = (jdTT - 2451545.0) / 36525.0;
+  const rad = Math.PI / 180;
+  const D = 297.85036 + 445267.11148 * T - 0.0019142 * T * T + (T * T * T) / 189474;
+  const M = 357.52772 + 35999.05034 * T - 0.0001603 * T * T - (T * T * T) / 300000;
+  const Mp = 134.96298 + 477198.867398 * T + 0.0086972 * T * T + (T * T * T) / 56250;
+  const F = 93.27191 + 483202.017538 * T - 0.0036825 * T * T + (T * T * T) / 327270;
+  const Om = 125.04452 - 1934.136261 * T + 0.0020708 * T * T + (T * T * T) / 450000;
+  let sum = 0;
+  for (const [d, m, mp, f, om, a, b] of NUTATION_TERMS) {
+    const arg = (d * D + m * M + mp * Mp + f * F + om * Om) * rad;
+    sum += (a + b * T) * Math.sin(arg);
+  }
+  return sum * 0.0001;
+}
+
 // ------------------------------------------------------------ local time
 
 export function parseDate(v: unknown) {
