@@ -17,6 +17,7 @@ Calculation:
 - Janma Rashi
 - Nakshatra and Pada
 - Sidereal convention: Swiss Ephemeris native (true ayanamsha = mean + nutation in longitude). The ephemeris wrapper only subtracts the mean ayanamsha, so the Worker removes nutation (`src/chart-core.ts`, pinned to swe by a fixture) from every longitude, the Ascendant and Placidus cusps; `ayanamsha.trueDegrees` and `calculationProfile.nutationLongitudeArcsec` expose it. Matches the Python engine.
+- Sidereal convention: Swiss Ephemeris native (true ayanamsha = mean + nutation in longitude). The ephemeris wrapper only subtracts the mean ayanamsha, so the Worker removes nutation (`src/chart-core.ts`, pinned to swe by a fixture) from every longitude, the Ascendant and Placidus cusps; `ayanamsha.trueDegrees` and `calculationProfile.nutationLongitudeArcsec` expose it. Matches the Python engine.
 - boundary warnings (Rashi, Nakshatra and Pada edges within 0.1 deg)
 - D9/Navamsa, mean Rahu/Ketu, Whole Sign house numbers per planet
 - houses: Whole Sign (`W`, default), Equal (`E`), Placidus (`P`, rejected above 66.5 deg latitude)
