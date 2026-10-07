@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "dry-run": "wrangler deploy --dry-run"
+    "dry-run": "wrangler deploy --dry-run",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/unit/register-stubs.mjs --test 'tests/unit/*.test.mjs'",
+    "check:fixtures": "python3 tests/tools/generate-deltat-fixture.py --check"
   },
   "dependencies": {
     "@fusionstrings/panchangam": "npm:@jsr/fusionstrings__panchangam@0.2.1"

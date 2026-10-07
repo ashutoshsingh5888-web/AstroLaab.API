@@ -52,7 +52,7 @@ def oracle(case: dict) -> dict:
     for name, planet in {
         "Sun": swe.SUN, "Moon": swe.MOON, "Mercury": swe.MERCURY,
         "Venus": swe.VENUS, "Mars": swe.MARS, "Jupiter": swe.JUPITER,
-        "Saturn": swe.SATURN, "Rahu": swe.TRUE_NODE,
+        "Saturn": swe.SATURN, "Rahu": swe.MEAN_NODE,
     }.items():
         flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL | swe.FLG_SPEED
         out[name] = norm(float(swe.calc_ut(jd, planet, flags)[0][0]))

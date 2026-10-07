@@ -35,3 +35,13 @@ uvicorn main:app --reload
 ```
 
 The API is version-pinned through `requirements.txt`, including `pyswisseph==2.10.3.2`.
+
+
+## Python chart engine notes
+
+- Sidereal mode in Swiss Ephemeris is thread-local, so `engine/astronomy.py` selects Lahiri inside every calculation (regression-tested in `tests/test_engine_unit.py`).
+- Rahu/Ketu use the mean node by default (matches AstroSage and the Worker); pass `"node": "true"` to opt in to the true node.
+- Request fields `timezone` (IANA, default `Asia/Kolkata`) and `utc_offset_minutes` (optional) control local-to-UTC conversion. Supported years: 1950-2050.
+- Rate limits: `RATE_LIMIT` (default `20/minute` per verified API key), `AUTH_FAILURE_MAX` failed keys per client per minute. Counters are per process; run uvicorn with `--proxy-headers` behind a proxy so the real client address is used.
+- Tests: `pip install -r requirements.txt -r requirements-dev.txt && PYTHONPATH=. python -m unittest tests/test_engine_unit.py`
+- Repo hygiene: run `./repo-cleanup.sh` once to stop tracking the committed `venv/` and `__pycache__`.

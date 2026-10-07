@@ -5,9 +5,6 @@ Cloudflare Worker API for Janma Rashi / Moon Sign.
 Endpoints:
 - `GET /health`
 - `GET /location?q=Mumbai`
-- `GET /self-test`
-- `GET /accuracy-test`
-- `GET /forensic-test` (diagnostic only)
 - `POST /moon-sign`
 - `POST /birth-chart`
 
@@ -19,7 +16,11 @@ Calculation:
 - sidereal Moon longitude
 - Janma Rashi
 - Nakshatra and Pada
-- boundary warning
+- boundary warnings (Rashi, Nakshatra and Pada edges within 0.1 deg)
+- D9/Navamsa, mean Rahu/Ketu, Whole Sign house numbers per planet
+- houses: Whole Sign (`W`, default), Equal (`E`), Placidus (`P`, rejected above 66.5 deg latitude)
+
+Supported birth years: 1950-2050, judged on the LOCAL calendar year. Local times that never existed (DST gap) are rejected with HTTP 400; times that occurred twice (DST overlap) are accepted with an `ambiguous_local_time` warning (first occurrence). Send `utcOffsetMinutes` to choose. Bad input returns 400, internal failures 500 with no detail.
 
 Example request:
 
@@ -53,9 +54,28 @@ Before public commercial use, verify the Swiss Ephemeris licensing terms. The pa
 
 The first implementation uses Photon / OpenStreetMap for place suggestions. It is intentionally isolated behind `/location`, so it can later be replaced with a dedicated geocoder or self-hosted service without changing the Moon Sign API.
 
-## Forensic validation
+## Diagnostics
 
-`/forensic-test` compares the canonical TT planetary path with the raw UT Swiss Ephemeris call using the same embedded Swiss engine. It is diagnostic only and does not alter production calculation behavior.
+The public `/self-test`, `/accuracy-test` and `/forensic-test` endpoints were removed: they carried stale golden values and exposed internals. Validation now lives in CI (see Tests).
+
+## Rate limiting `/location`
+
+Responses are cached for 24 h. To add a hard per-IP limit, bind Cloudflare's Rate Limiting API (requires a wrangler version that supports `ratelimits`), then the Worker enforces it automatically:
+
+```jsonc
+"ratelimits": [{ "name": "LOCATION_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }]
+```
+
+## Tests
+
+```
+npm test                                   # Node unit tests: D9, Whole Sign, delta-T, DST, HTTP layer (WASM stubbed)
+python tests/tools/generate-deltat-fixture.py --check
+python tests/validate-pada-boundaries.py   # Pada review vs pyswisseph (+ live Worker if ASTROLAAB_ENDPOINT is set)
+python tests/validate-chart-hardening.py   # live: houses, D9, Whole Sign numbers, API contract
+```
+
+`src/chart-core.ts` holds all pure logic so it can be tested without the WASM package. Unit tests use independent oracles (classical navamsa table, integer-arc-minute pada arithmetic, a pyswisseph-generated delta-T fixture), not the implementation's own formulas.
 
 ## Independent accuracy regression
 

@@ -1,384 +1,235 @@
 import {
-  calculate_nakshatra,
   calculate_houses,
   calculate_planets,
-  calc_ut,
   get_ayanamsha,
   get_swisseph_version,
   p_julday,
 } from "@fusionstrings/panchangam/browser";
+import {
+  InputError,
+  SUPPORTED_MAX_YEAR,
+  SUPPORTED_MIN_YEAR,
+  assertHouseSystem,
+  boundaryWarnings,
+  decimalYearOf,
+  deltaT,
+  divisionalSign,
+  equalCusps,
+  isAllowedOrigin,
+  nakshatraPada,
+  norm,
+  resolveLocalTime,
+  signOf,
+  wholeSignCusps,
+  wholeSignHouse,
+} from "./chart-core.ts";
 
-const SIGNS = [
-  ["Mesha","Aries","♈"],["Vrishabha","Taurus","♉"],["Mithuna","Gemini","♊"],
-  ["Karka","Cancer","♋"],["Simha","Leo","♌"],["Kanya","Virgo","♍"],
-  ["Tula","Libra","♎"],["Vrishchika","Scorpio","♏"],["Dhanu","Sagittarius","♐"],
-  ["Makara","Capricorn","♑"],["Kumbha","Aquarius","♒"],["Meena","Pisces","♓"]
-];
+type Env = {
+  // Optional Cloudflare Rate Limiting binding. See README for the wrangler snippet.
+  LOCATION_LIMITER?: { limit(options: { key: string }): Promise<{ success: boolean }> };
+};
+type Ctx = { waitUntil(p: Promise<unknown>): void };
 
-const NAKSHATRAS = [
-  "Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu",
-  "Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta",
-  "Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha",
-  "Uttara Ashadha","Shravana","Dhanishtha","Shatabhisha","Purva Bhadrapada",
-  "Uttara Bhadrapada","Revati"
-];
+const MAX_BODY_BYTES = 16 * 1024;
 
 function cors(origin: string | null) {
-  const allowed = origin === "https://astrolaab.com" || origin === "https://www.astrolaab.com" || !!origin?.endsWith(".astrolaab.com");
   return {
-    "Access-Control-Allow-Origin": allowed ? origin! : "https://astrolaab.com",
+    "Access-Control-Allow-Origin": isAllowedOrigin(origin) ? origin! : "https://astrolaab.com",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Vary": "Origin"
+    "Vary": "Origin",
   };
 }
-function json(data: unknown, status=200, req?: Request) {
-  return new Response(JSON.stringify(data), {status, headers: {"Content-Type":"application/json; charset=utf-8", ...cors(req?.headers.get("Origin") ?? null)}});
-}
-function err(message:string, req:Request, status=400){ return json({ok:false,error:message},status,req); }
-
-function parseDate(v:string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error("date must be YYYY-MM-DD");
-  const [y,m,d]=v.split("-").map(Number);
-  const x=new Date(Date.UTC(y,m-1,d));
-  if(x.getUTCFullYear()!==y||x.getUTCMonth()!==m-1||x.getUTCDate()!==d) throw new Error("invalid date");
-  return {y,m,d};
-}
-function parseTime(v:string) {
-  if(!/^\d{2}:\d{2}(:\d{2})?$/.test(v)) throw new Error("time must be HH:MM or HH:MM:SS");
-  const [h,mi,s=0]=v.split(":").map(Number);
-  if(h>23||mi>59||s>59) throw new Error("invalid time");
-  return {h,mi,s};
-}
-function offsetFor(date:Date,tz:string){
-  const parts=new Intl.DateTimeFormat("en-US",{timeZone:tz,timeZoneName:"longOffset",hour:"2-digit",hourCycle:"h23"}).formatToParts(date);
-  const v=parts.find(p=>p.type==="timeZoneName")?.value ?? "GMT";
-  if(v==="GMT"||v==="UTC") return 0;
-  const m=v.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/);
-  if(!m) throw new Error("invalid IANA timezone or unavailable historical offset");
-  return (m[1]==="+"?1:-1)*(Number(m[2])*60+Number(m[3]||0));
-}
-function localToUtc(date:string,time:string,tz:string,explicit?:number){
-  const {y,m,d}=parseDate(date),{h,mi,s}=parseTime(time);
-  let off=explicit;
-  const guess=Date.UTC(y,m-1,d,h,mi,s);
-  if(off==null){
-    off=offsetFor(new Date(guess),tz);
-    const adjusted=new Date(guess-off*60000);
-    off=offsetFor(adjusted,tz);
-  }
-  if(!Number.isFinite(off)||Math.abs(off)>14*60) throw new Error("invalid UTC offset");
-  return {date:new Date(guess-off*60000),offsetMinutes:off};
-}
-function norm(x:number){return ((x%360)+360)%360;}
-function dms(x:number){
-  const total=Math.round((x%30)*3600);
-  const deg=Math.floor(total/3600), min=Math.floor((total%3600)/60), sec=total%60;
-  return {degrees:deg,minutes:min,seconds:sec,text:`${deg}° ${String(min).padStart(2,"0")}′ ${String(sec).padStart(2,"0")}″`};
-}
-function signOf(longitude:number){
-  const i=Math.floor(norm(longitude)/30);
-  return {index:i+1,name:SIGNS[i][0],english:SIGNS[i][1],symbol:SIGNS[i][2],degreeInSign:norm(longitude)-i*30,degreeInSignDms:dms(norm(longitude)-i*30)};
-}
-function divisionalSign(longitude:number, division:number){
-  const x=norm(longitude), rashi=Math.floor(x/30), part=Math.floor((x%30)/(30/division));
-  // Generic varga mapping. D9 is the primary public chart; this follows the classical movable/fixed/dual navamsa rule.
-  if(division===9){
-    const navamsaIndex = ((rashi%3===0 ? rashi : rashi%3===1 ? (rashi+8)%12 : (rashi+4)%12) + part) % 12;
-    return signOf(navamsaIndex*30);
-  }
-  return signOf(((rashi*division+part)%12)*30);
-}
-const DELTA_T_SECONDS: Record<number, number> = {
-  2005:64.752416,2006:64.984080,2007:65.300753,2008:65.617544,2009:65.927825,
-  2010:66.197555,2011:66.459474,2012:66.747477,2013:67.090086,2014:67.456277,
-  2015:67.860476,2016:68.352592,2017:68.795957,2018:69.107456,2019:69.306882,
-  2020:69.373681,2021:69.333821,2022:69.239692,2023:69.140582,2024:69.051739,
-  2025:68.951216,2026:68.842899,2027:68.800000,2028:68.917748,2029:69.155609,
-  2030:69.395779,2031:69.638285,2032:69.883824,2033:70.131078,2034:70.380740,
-  2035:70.632833,2036:70.888083,2037:71.145118,2038:71.404658,2039:71.666725,
-  2040:71.932074,2041:72.199277,2042:72.469082,2043:72.741511,2044:73.017346,
-  2045:73.295104,2046:73.575560,2047:73.858737,2048:74.145448,2049:74.434148,
-  2050:74.725642
-};
-
-const DELTA_T_SUPPORTED_MIN_YEAR = 1950;
-const DELTA_T_SUPPORTED_MAX_YEAR = 2050;
-
-function deltaT(year:number){
-  const calendarYear=Math.floor(year);
-  if(calendarYear < DELTA_T_SUPPORTED_MIN_YEAR || calendarYear > DELTA_T_SUPPORTED_MAX_YEAR){
-    throw new Error("birth year outside supported Delta-T range " + DELTA_T_SUPPORTED_MIN_YEAR + "-" + DELTA_T_SUPPORTED_MAX_YEAR);
-  }
-  if(year>=2005 && year<=2050){
-    const y0=Math.floor(year), f=year-y0;
-    const a=DELTA_T_SECONDS[y0], b=DELTA_T_SECONDS[Math.min(2050,y0+1)] ?? a;
-    return a+(b-a)*f;
-  }
-  if(year>2050) return DELTA_T_SECONDS[2050];
-  let t:number;
-  if(year<1920){t=year-1900;return -2.79+1.494119*t-0.0598939*t**2+0.0061966*t**3-0.000197*t**4;}
-  if(year<1941){t=year-1920;return 21.20+0.84493*t-0.0761*t**2+0.0020936*t**3;}
-  if(year<1961){t=year-1950;return 29.07+0.407*t-t**2/233+t**3/2547;}
-  if(year<1986){t=year-1975;return 45.45+1.067*t-t**2/260-t**3/718;}
-  if(year<2005){t=year-2000;return 63.86+0.3345*t-0.060374*t**2+0.0017275*t**3+0.000651814*t**4+0.00002373599*t**5;}
-  throw new Error("unreachable Delta-T branch");
-}
-
-function planetId(name:string){
-  const n=name.toLowerCase();
-  if(n.includes("sun")) return 0; if(n.includes("moon")) return 1; if(n.includes("mercury")) return 2;
-  if(n.includes("venus")) return 3; if(n.includes("mars")) return 4; if(n.includes("jupiter")) return 5;
-  if(n.includes("saturn")) return 6; if(n.includes("uranus")) return 7; if(n.includes("neptune")) return 8;
-  if(n.includes("pluto")) return 9; return -1;
-}
-
-function calculate(body:any){
-  if(!body?.date||!body?.time||!body?.timeZone) throw new Error("date, time and timeZone are required");
-  const u=localToUtc(body.date,body.time,body.timeZone,body.utcOffsetMinutes);
-  const x=u.date;
-  const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
-  const jd=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
-  const utcYear=x.getUTCFullYear();
-  if(utcYear < DELTA_T_SUPPORTED_MIN_YEAR || utcYear > DELTA_T_SUPPORTED_MAX_YEAR){
-    throw new Error("birth year outside supported Delta-T range " + DELTA_T_SUPPORTED_MIN_YEAR + "-" + DELTA_T_SUPPORTED_MAX_YEAR);
-  }
-  const decimalYear=utcYear+(x.getUTCMonth()+0.5)/12;
-  const jdTT=jd+deltaT(decimalYear)/86400;
-  const ay=get_ayanamsha(1,jdTT);
-  // The panchangam wrapper's calculate_planets() is its canonical Swiss Ephemeris
-  // sidereal path: it calculates with Swiss Ephemeris and subtracts the requested
-  // ayanamsha consistently for all supported Vedic planets.
-  const planetsRaw=calculate_planets(jdTT,1) as any[];
-  const planets=planetsRaw.map((p:any)=>{
-    const longitude=norm(Number(p.longitude));
-    const s=signOf(longitude);
-    return {id:Number(p.id),name:p.name,longitude,latitude:Number(p.latitude??0),speed:Number(p.speed??0),retrograde:Boolean(p.is_retrograde),sign:s,navamsa:divisionalSign(longitude,9)};
+function json(data: unknown, status = 200, req?: Request, extra: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json; charset=utf-8", ...cors(req?.headers.get("Origin") ?? null), ...extra },
   });
-  const moon=planets.find((p:any)=>p.id===1);
-  if(!moon) throw new Error("Moon position unavailable");
-  const ni=Math.floor(moon.longitude/(360/27)), pada=Math.floor((moon.longitude%(360/27))/((360/27)/4))+1;
-  let houses:any=null;
-  if(body.place){
-    const lat=Number(body.place.latitude), lon=Number(body.place.longitude);
-    if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180) throw new Error("invalid selected location");
-    const hs=String(body.houseSystem??"P").toUpperCase();
-    if(!["P","W","E"].includes(hs)) throw new Error("houseSystem must be P, W or E");
-    const h=calculate_houses(jd,lat,lon,hs,1) as any;
-    houses={system:hs,ascendant:signOf(Number(h.ascendant)),cusps:Array.from(h.cusps??[]).map((v:number,i:number)=>({house:i+1,longitude:norm(Number(v)),sign:signOf(norm(Number(v)))}))};
+}
+function err(message: string, req: Request, status = 400, extra: Record<string, string> = {}) {
+  return json({ ok: false, error: message }, status, req, extra);
+}
+
+// Number(null), Number("") and Number(true) are 0, 0 and 1: a missing coordinate
+// must not silently become the equator or the prime meridian.
+function toCoordinate(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string" && v.trim() !== "") return Number(v);
+  return Number.NaN;
+}
+
+function calculate(body: any) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new InputError("invalid JSON body");
+  if (!body.date || !body.time || !body.timeZone) throw new InputError("date, time and timeZone are required");
+
+  let lat = 0, lon = 0, hs = "W";
+  if (body.place) {
+    lat = toCoordinate(body.place.latitude);
+    lon = toCoordinate(body.place.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      throw new InputError("invalid selected location");
+    }
+    hs = String(body.houseSystem ?? "W").toUpperCase();
+    assertHouseSystem(hs, lat);
   }
-  const ayanamsaDeg=Number(ay);
+
+  const lt = resolveLocalTime(body.date, body.time, body.timeZone, body.utcOffsetMinutes);
+  const x = lt.date;
+  const hour = x.getUTCHours() + x.getUTCMinutes() / 60 + x.getUTCSeconds() / 3600 + x.getUTCMilliseconds() / 3600000;
+  const jd = p_julday(x.getUTCFullYear(), x.getUTCMonth() + 1, x.getUTCDate(), hour, 1);
+  const deltaTSeconds = deltaT(decimalYearOf(x));
+  const jdTT = jd + deltaTSeconds / 86400;
+  const ay = get_ayanamsha(1, jdTT);
+
+  // calculate_planets() is the wrapper's canonical sidereal path and expects TT.
+  const planetsRaw = calculate_planets(jdTT, 1) as any[];
+  const basePlanets = planetsRaw.map((p: any) => {
+    const longitude = norm(Number(p.longitude));
+    return {
+      id: Number(p.id), name: p.name, longitude,
+      latitude: Number(p.latitude ?? 0), speed: Number(p.speed ?? 0),
+      retrograde: Boolean(p.is_retrograde),
+      sign: signOf(longitude), navamsa: divisionalSign(longitude, 9),
+    };
+  });
+  const moon = basePlanets.find((p) => p.id === 1);
+  if (!moon) throw new Error("Moon position unavailable");
+  const nak = nakshatraPada(moon.longitude);
+
+  let houses: any = null;
+  let ascLon: number | null = null;
+  if (body.place) {
+    // Houses use UT. Whole Sign and Equal cusps are derived from the sidereal
+    // Ascendant here so they cannot depend on wrapper internals; Placidus
+    // comes from the wrapper (rejected above 66.5 deg latitude, where Swiss
+    // Ephemeris would silently fall back to another system).
+    const h = calculate_houses(jd, lat, lon, hs, 1) as any;
+    ascLon = norm(Number(h.ascendant));
+    let cuspLongitudes: number[];
+    if (hs === "W") cuspLongitudes = wholeSignCusps(ascLon);
+    else if (hs === "E") cuspLongitudes = equalCusps(ascLon);
+    else {
+      cuspLongitudes = Array.from(h.cusps ?? []).slice(0, 12).map((v: any) => norm(Number(v)));
+      if (cuspLongitudes.length !== 12) throw new Error("unexpected house cusp count from ephemeris wrapper");
+    }
+    houses = {
+      system: hs,
+      ascendant: signOf(ascLon),
+      cusps: cuspLongitudes.map((v, i) => ({ house: i + 1, longitude: v, sign: signOf(v) })),
+    };
+  }
+
+  const planets = basePlanets.map((p) => ({
+    ...p,
+    wholeSignHouse: ascLon === null ? null : wholeSignHouse(p.longitude, ascLon),
+  }));
+
+  const boundary = boundaryWarnings(moon.longitude);
   return {
-    ok:true,engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),calculationProfile:{zodiac:"sidereal",ayanamsha:"Lahiri (Chitrapaksha)",ayanamshaMode:1,houseSystem:houses?.system??null,ephemeris:"Swiss Ephemeris",supportedDeltaTYearRange:{min:DELTA_T_SUPPORTED_MIN_YEAR,max:DELTA_T_SUPPORTED_MAX_YEAR},timeScales:{planets:"TT",houses:"UT",ayanamsha:"TT",deltaTSeconds:deltaT(decimalYear)}},
-    ayanamsha:{name:"Lahiri (Chitrapaksha)",mode:1,degrees:ayanamsaDeg},
-    birth:{localDate:body.date,localTime:body.time,timeZone:body.timeZone,utcOffsetMinutes:u.offsetMinutes,utc:x.toISOString(),julianDayUT:jd,julianDayTT:jdTT},
-    location:body.place?{name:body.place.name??null,country:body.place.country??null,latitude:Number(body.place.latitude),longitude:Number(body.place.longitude)}:null,
-    moon:{siderealLongitude:moon.longitude,sign:moon.sign,degreeInSign:moon.sign.degreeInSign,degreeInSignDms:moon.sign.degreeInSignDms,nakshatra:{name:NAKSHATRAS[ni],index:ni+1,pada},navamsa:moon.navamsa},
+    ok: true,
+    engine: "Swiss Ephemeris",
+    swissephVersion: get_swisseph_version(),
+    calculationProfile: {
+      zodiac: "sidereal",
+      ayanamsha: "Lahiri (Chitrapaksha)",
+      ayanamshaMode: 1,
+      nodeType: "mean",
+      houseSystem: houses?.system ?? null,
+      ephemeris: "Swiss Ephemeris",
+      supportedBirthYearRange: { min: SUPPORTED_MIN_YEAR, max: SUPPORTED_MAX_YEAR },
+      supportedDeltaTYearRange: { min: SUPPORTED_MIN_YEAR, max: SUPPORTED_MAX_YEAR },
+      timeScales: { planets: "TT", houses: "UT", ayanamsha: "TT", deltaTSeconds },
+    },
+    ayanamsha: { name: "Lahiri (Chitrapaksha)", mode: 1, degrees: Number(ay) },
+    birth: {
+      localDate: body.date, localTime: body.time, timeZone: body.timeZone,
+      utcOffsetMinutes: lt.offsetMinutes, utc: x.toISOString(), julianDayUT: jd, julianDayTT: jdTT,
+    },
+    location: body.place
+      ? { name: body.place.name ?? null, country: body.place.country ?? null, latitude: lat, longitude: lon }
+      : null,
+    moon: {
+      siderealLongitude: moon.longitude, sign: moon.sign,
+      degreeInSign: moon.sign.degreeInSign, degreeInSignDms: moon.sign.degreeInSignDms,
+      nakshatra: { name: nak.name, index: nak.index, pada: nak.pada },
+      navamsa: moon.navamsa,
+    },
     planets,
     houses,
-    boundaryWarning:(() => {
-      const rashiDistance=Math.min(moon.sign.degreeInSign,30-moon.sign.degreeInSign);
-      const nakSpan=360/27;
-      const nakOffset=moon.longitude%nakSpan;
-      const nakDistance=Math.min(nakOffset,nakSpan-nakOffset);
-      const padaSpan=360/108;
-      const padaOffset=moon.longitude%padaSpan;
-      const padaDistance=Math.min(padaOffset,padaSpan-padaOffset);
-      const nearest=Math.min(rashiDistance,nakDistance,padaDistance);
-      if(nearest<0.1) return "Moon is very close to a Rashi, Nakshatra, or Pada boundary. Recheck birth time and timezone.";
-      return null;
-    })()
+    warnings: [...lt.warnings, ...boundary],
+    boundaryWarning: boundary.length ? String(boundary[0].message) : null,
   };
 }
-const SELF_TESTS:any[] = [
-  {id:"india-mumbai-1990",date:"1990-05-15",time:"14:30:00",timeZone:"Asia/Kolkata",place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},expected:{moonSign:"Makara",moonLongitude:271.8935490396424}},
-  {id:"india-delhi-2024",date:"2024-01-01",time:"12:00:00",timeZone:"Asia/Kolkata",place:{name:"New Delhi",country:"India",latitude:28.6139,longitude:77.209}},
-  {id:"india-kolkata-2000",date:"2000-01-01",time:"00:00:00",timeZone:"Asia/Kolkata",place:{name:"Kolkata",country:"India",latitude:22.5726,longitude:88.3639}},
-  {id:"usa-new-york-dst",date:"2020-07-15",time:"12:00:00",timeZone:"America/New_York",place:{name:"New York",country:"United States",latitude:40.7128,longitude:-74.006}},
-  {id:"australia-sydney-dst",date:"2021-01-15",time:"12:00:00",timeZone:"Australia/Sydney",place:{name:"Sydney",country:"Australia",latitude:-33.8688,longitude:151.2093}},
-  {id:"equator-singapore",date:"2010-06-21",time:"06:30:00",timeZone:"Asia/Singapore",place:{name:"Singapore",country:"Singapore",latitude:1.3521,longitude:103.8198}},
-  {id:"southern-hemisphere-sao-paulo",date:"1985-11-03",time:"18:45:30",timeZone:"America/Sao_Paulo",place:{name:"Sao Paulo",country:"Brazil",latitude:-23.5505,longitude:-46.6333}},
-  {id:"europe-london",date:"1975-03-30",time:"09:15:00",timeZone:"Europe/London",place:{name:"London",country:"United Kingdom",latitude:51.5074,longitude:-0.1278}}
-];
 
-async function runAccuracyTest(){
-  // Independent public reference: AstroSage Brihat Horoscope sample, Pooja Sharma.
-  // Birth: 23 Aug 1978, 23:53:18, Delhi (28N40, 77E13), TZ +5.5.
-  // AstroSage reports Lahiri ayanamsha 23-33-30 and rounded sidereal longitudes to 1 arcsec.
-  const ref:any={
-    id:"astrosage-pooja-sharma-1978",
-    date:"1978-08-23",time:"23:53:18",timeZone:"Asia/Kolkata",
-    place:{latitude:28+40/60,longitude:77+13/60},
-    expected:{
-      Ascendant:45+30/60+14/3600,
-      Sun:120+6+42/60+30/3600,
-      Moon:16+23/60+10/3600,
-      Mars:150+18+40/60+48/3600,
-      Mercury:90+28+16/60+43/3600,
-      Jupiter:90+3+54/60+40/3600,
-      Venus:150+22+40/60+42/3600,
-      Saturn:120+9+57/60+57/3600,
-      Rahu:150+4+33/60+40/3600,
-      Ketu:330+4+33/60+40/3600,
-      Uranus:180+19+15/60+30/3600,
-      Neptune:210+21+58/3600+28/3600,
-      Pluto:150+21+19/60+34/3600,
-      Ayanamsha:23+33/60+30/3600
-    }
-  };
-  const out=calculate({date:ref.date,time:ref.time,timeZone:ref.timeZone,place:ref.place,houseSystem:"P"});
-  const arcsec=(a:number,b:number)=>{const d=Math.abs(norm(a-b));return (d>180?360-d:d)*3600;};
-  const errors:any={};
-  for(const name of ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu","Uranus","Neptune","Pluto"]){
-    const p=out.planets.find((x:any)=>x.name===name);
-    errors[name]=p?arcsec(p.longitude,ref.expected[name]):null;
+async function locations(q: string, req: Request, env?: Env, ctx?: Ctx) {
+  const query = q.trim();
+  if (query.length < 2 || query.length > 100) return err("location query must be 2–100 characters", req);
+
+  if (env?.LOCATION_LIMITER) {
+    const key = req.headers.get("CF-Connecting-IP") ?? "anonymous";
+    const { success } = await env.LOCATION_LIMITER.limit({ key });
+    if (!success) return err("too many requests", req, 429, { "Retry-After": "60" });
   }
-  const ascLon=Number(out.houses?.ascendant?.index?((out.houses.ascendant.index-1)*30+out.houses.ascendant.degreeInSign):NaN);
-  errors.Ascendant=arcsec(ascLon,ref.expected.Ascendant);
-  errors.Ayanamsha=Math.abs(out.ayanamsha.degrees-ref.expected.Ayanamsha)*3600;
-  const maxArcsec=Math.max(...Object.values(errors).map(Number));
-  return {
-    ok:maxArcsec<=2,
-    reference:ref.id,
-    source:"AstroSage Brihat Horoscope public sample",
-    thresholdArcsec:2,
-    note:"AstroSage reference longitudes are rounded to 1 arcsecond; this is an independent reference test, not a proof of absolute accuracy.",
-    errorsArcsec:errors,
-    maxArcsec,
-    calculated:{birth:out.birth,ayanamsha:out.ayanamsha,ascendant:ascLon}
-  };
-}
 
-function runSelfTest(){
-  const results:any[]=[];
-  for(const t of SELF_TESTS){
-    try{
-      const b={...t,houseSystem:"W"};
-      const out=calculate(b);
-      const checks:any[]=[
-        ["engine",out.engine==="Swiss Ephemeris"],
-        ["Lahiri",out.calculationProfile?.ayanamsha==="Lahiri (Chitrapaksha)"],
-        ["Moon longitude",Number.isFinite(out.moon?.siderealLongitude)],
-        ["Rashi",typeof out.moon?.sign?.english==="string"],
-        ["Nakshatra",Number.isInteger(out.moon?.nakshatra?.index)&&out.moon.nakshatra.index>=1&&out.moon.nakshatra.index<=27],
-        ["Pada",Number.isInteger(out.moon?.nakshatra?.pada)&&out.moon.nakshatra.pada>=1&&out.moon.nakshatra.pada<=4],
-        ["D9",typeof out.moon?.navamsa?.english==="string"],
-        ["Planets",Array.isArray(out.planets)&&out.planets.length>=7],
-        ["Houses",Array.isArray(out.houses?.cusps)&&out.houses.cusps.length>=12],
-        ["Ascendant",Number.isFinite(out.houses?.ascendant?.degreeInSign)]
-      ];
-      if(t.expected?.moonSign) checks.push(["golden Moon sign",out.moon.sign.name===t.expected.moonSign]);
-      if(Number.isFinite(t.expected?.moonLongitude)) checks.push(["golden Moon longitude",Math.abs(out.moon.siderealLongitude-t.expected.moonLongitude)<(1/3600)]);
-      const failed=checks.filter((x:any)=>!x[1]).map((x:any)=>x[0]);
-      results.push({id:t.id,status:failed.length?"FAIL":"PASS",failed});
-    }catch(e){
-      results.push({id:t.id,status:"ERROR",error:e instanceof Error?e.message:String(e)});
-    }
+  const cache: any = typeof caches !== "undefined" ? (caches as any).default : null;
+  const cacheKey = new Request("https://cache.astrolaab.invalid/location?q=" + encodeURIComponent(query.toLowerCase()));
+  if (cache) {
+    const hit = await cache.match(cacheKey);
+    if (hit) return json(await hit.json(), 200, req);
   }
-  const passed=results.filter(x=>x.status==="PASS").length;
-  return {ok:passed===results.length,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",tests:results,passed,failed:results.length-passed,total:results.length};
+
+  const u = new URL("https://photon.komoot.io/api/");
+  u.searchParams.set("q", query); u.searchParams.set("limit", "6"); u.searchParams.set("lang", "en");
+  let r: Response;
+  try {
+    r = await fetch(u, {
+      headers: { "Accept": "application/json", "User-Agent": "AstroLaab/1.0 (https://astrolaab.com)" },
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    return err("location service timed out", req, 504);
+  }
+  if (!r.ok) return err("location service unavailable", req, 502);
+  const data: any = await r.json();
+  const results = (data.features ?? []).map((f: any) => {
+    const p = f.properties ?? {}, [lon, lat] = f.geometry?.coordinates ?? [];
+    return {
+      id: `${p.osm_type ?? "place"}:${p.osm_id ?? `${lat},${lon}`}`,
+      name: p.name ?? p.city ?? p.state ?? p.country ?? query,
+      city: p.city ?? p.name ?? null, state: p.state ?? null, country: p.country ?? null,
+      countryCode: p.countrycode ?? null, latitude: lat, longitude: lon,
+      label: [p.name ?? p.city, p.state, p.country].filter(Boolean).join(", "),
+    };
+  }).filter((x: any) => Number.isFinite(x.latitude) && Number.isFinite(x.longitude));
+  const payload = { ok: true, source: "Photon / OpenStreetMap", attribution: "Location data © OpenStreetMap contributors", results };
+  if (cache) {
+    const put = cache.put(cacheKey, new Response(JSON.stringify(payload), { headers: { "Cache-Control": "public, max-age=86400" } }));
+    if (ctx) ctx.waitUntil(put); else await put;
+  }
+  return json(payload, 200, req);
 }
 
-
-function runForensicTest(){
-  // Diagnostic only. This intentionally compares the same embedded Swiss
-  // Ephemeris engine through the wrapper and raw UT API. It does not modify
-  // production calculation behavior.
-  const input={
-    date:"1990-05-15",
-    time:"14:30:00",
-    timeZone:"Asia/Kolkata",
-    place:{name:"Mumbai",country:"India",latitude:19.076,longitude:72.8777},
-    houseSystem:"W"
-  };
-  const u=localToUtc(input.date,input.time,input.timeZone);
-  const x=u.date;
-  const hour=x.getUTCHours()+x.getUTCMinutes()/60+x.getUTCSeconds()/3600+x.getUTCMilliseconds()/3600000;
-  const jdUT=p_julday(x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate(),hour,1);
-  const decimalYear=x.getUTCFullYear()+(x.getUTCMonth()+0.5)/12;
-  const deltaTSeconds=deltaT(decimalYear);
-  const jdTT=jdUT+deltaTSeconds/86400;
-  const ayTT=Number(get_ayanamsha(1,jdTT));
-  const ayUT=Number(get_ayanamsha(1,jdUT));
-  const wrapper=calculate_planets(jdTT,1) as any[];
-  const wrapperMoon=wrapper.find((p:any)=>Number(p.id)===1);
-  if(!wrapperMoon) throw new Error("Moon position unavailable in wrapper calculation");
-
-  const flags=2|256; // SEFLG_SWIEPH | SEFLG_SPEED
-  const rawUT=calc_ut(jdUT,1,flags) as any;
-  const rawUTTropical=norm(Number(rawUT.longitude));
-  const wrapperTropical=norm(Number(wrapperMoon.longitude)+ayTT);
-
-  return {
-    ok:true,
-    service:"astrolaab-moon-sign",
-    purpose:"ephemeris-time-scale forensic comparison",
-    note:"Diagnostic endpoint only; no values here are used as production goldens.",
-    engine:"Swiss Ephemeris",
-    swissephVersion:get_swisseph_version(),
-    input,
-    time:{
-      utc:x.toISOString(),
-      utcOffsetMinutes:u.offsetMinutes,
-      julianDayUT:jdUT,
-      julianDayTT:jdTT,
-      deltaTSeconds
-    },
-    ayanamsha:{
-      mode:1,
-      lahiriTT:ayTT,
-      lahiriAtUTInput:ayUT,
-      differenceArcsec:Math.abs(ayTT-ayUT)*3600
-    },
-    moon:{
-      wrapperSiderealTT:wrapperMoon.longitude,
-      rawCalcUTTropical:rawUTTropical,
-      rawCalcUTSiderealUsingTTAyanamsha:norm(rawUTTropical-ayTT),
-      rawCalcUTSiderealUsingUTAyanamsha:norm(rawUTTropical-ayUT),
-      wrapperTropicalReconstructed:wrapperTropical,
-      wrapperVsRawUTTropicalArcsec:(Math.abs(wrapperTropical-rawUTTropical)>180?360-Math.abs(wrapperTropical-rawUTTropical):Math.abs(wrapperTropical-rawUTTropical))*3600,
-      currentExpectedGolden:271.8935490396424,
-      currentGoldenDifferenceArcsec:(Math.abs(wrapperMoon.longitude-271.8935490396424)>180?360-Math.abs(wrapperMoon.longitude-271.8935490396424):Math.abs(wrapperMoon.longitude-271.8935490396424))*3600,
-      oldExpectedGolden:271.888653616292,
-      oldGoldenDifferenceArcsec:(Math.abs(wrapperMoon.longitude-271.888653616292)>180?360-Math.abs(wrapperMoon.longitude-271.888653616292):Math.abs(wrapperMoon.longitude-271.888653616292))*3600,
-      oldPathDifferenceArcsec:(Math.abs(norm(rawUTTropical-ayUT)-271.888653616292)>180?360-Math.abs(norm(rawUTTropical-ayUT)-271.888653616292):Math.abs(norm(rawUTTropical-ayUT)-271.888653616292))*3600
-    },
-    flags:{
-      value:flags,
-      ephemeris:"SWIEPH",
-      speed:true,
-      sidereal:"wrapper subtracts Lahiri; raw calc_ut call is tropical"
+export default {
+  async fetch(req: Request, env?: Env, ctx?: Ctx) {
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req.headers.get("Origin")) });
+    const u = new URL(req.url);
+    try {
+      if (req.method === "GET" && u.pathname === "/health") {
+        return json({ ok: true, service: "astrolaab-moon-sign", engine: "Swiss Ephemeris", swissephVersion: get_swisseph_version(), ayanamsha: "Lahiri (Chitrapaksha)" }, 200, req);
+      }
+      if (req.method === "GET" && u.pathname === "/location") return await locations(u.searchParams.get("q") ?? "", req, env, ctx);
+      if (req.method === "POST" && (u.pathname === "/moon-sign" || u.pathname === "/birth-chart")) {
+        const text = await req.text();
+        if (text.length > MAX_BODY_BYTES) return err("request body too large", req, 413);
+        let body: any;
+        try { body = JSON.parse(text); } catch { throw new InputError("invalid JSON body"); }
+        return json(calculate(body), 200, req);
+      }
+      return err("not found", req, 404);
+    } catch (e) {
+      if (e instanceof InputError) return err(e.message, req, 400);
+      console.error(e);
+      return err("internal error", req, 500);
     }
-  };
-}
-
-async function locations(q:string,req:Request){
-  if(q.trim().length<2||q.length>100) return err("location query must be 2–100 characters",req);
-  const u=new URL("https://photon.komoot.io/api/"); u.searchParams.set("q",q.trim());u.searchParams.set("limit","6");u.searchParams.set("lang","en");
-  const r=await fetch(u,{headers:{"Accept":"application/json","User-Agent":"AstroLaab/1.0 (https://astrolaab.com)"}});
-  if(!r.ok) return err("location service unavailable",req,502);
-  const data:any=await r.json();
-  const results=(data.features??[]).map((f:any)=>{
-    const p=f.properties??{}, [lon,lat]=f.geometry?.coordinates??[];
-    return {id:`${p.osm_type??"place"}:${p.osm_id??`${lat},${lon}`}`,name:p.name??p.city??p.state??p.country??q,city:p.city??p.name??null,state:p.state??null,country:p.country??null,countryCode:p.countrycode??null,latitude:lat,longitude:lon,label:[p.name??p.city,p.state,p.country].filter(Boolean).join(", ")};
-  }).filter((x:any)=>Number.isFinite(x.latitude)&&Number.isFinite(x.longitude));
-  return json({ok:true,source:"Photon / OpenStreetMap",attribution:"Location data © OpenStreetMap contributors",results},200,req);
-}
-export default {async fetch(req:Request){
-  if(req.method==="OPTIONS") return new Response(null,{status:204,headers:cors(req.headers.get("Origin"))});
-  const u=new URL(req.url);
-  try{
-    if(req.method==="GET"&&u.pathname==="/health") return json({ok:true,service:"astrolaab-moon-sign",engine:"Swiss Ephemeris",swissephVersion:get_swisseph_version(),ayanamsha:"Lahiri (Chitrapaksha)"},200,req);
-    if(req.method==="GET"&&u.pathname==="/location") return locations(u.searchParams.get("q")??"",req);
-    if(req.method==="GET"&&u.pathname==="/self-test") return json(runSelfTest(),200,req);
-    if(req.method==="GET"&&u.pathname==="/accuracy-test") return json(await runAccuracyTest(),200,req);
-    if(req.method==="GET"&&u.pathname==="/forensic-test") return json(runForensicTest(),200,req);
-    if(req.method==="POST"&&(u.pathname==="/moon-sign"||u.pathname==="/birth-chart")){
-      const body=await req.json();
-      if(!body||typeof body!=="object") return err("invalid JSON body",req);
-      if(body.place && (!Number.isFinite(Number(body.place.latitude))||!Number.isFinite(Number(body.place.longitude)))) return err("invalid selected location",req);
-      return json(calculate(body),200,req);
-    }
-    return err("not found",req,404);
-  }catch(e){return err(e instanceof Error?e.message:"unexpected error",req,400);}
-}};
+  },
+};

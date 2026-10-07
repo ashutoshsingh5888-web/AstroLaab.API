@@ -1,0 +1,17 @@
+{
+  "note": "Birth data and Moon values exactly as printed on AstroSage's public celebrity pages (checked 2026-10-06). Offsets are the zone AstroSage prints: PST -8 and -5.0. Longitudes are sidereal Lahiri.",
+  "cases": [
+    {
+      "id": "astrosage-bill-gates",
+      "date": "1955-10-28", "time": "20:58:00", "utcOffsetMinutes": -480, "timeZone": "America/Los_Angeles",
+      "place": { "name": "Seattle", "country": "United States", "latitude": 47.6062, "longitude": -122.3321 },
+      "astrosage": { "moonSign": "Pisces", "moonDms": [14, 23, 31], "moonSignIndex": 11, "nakshatra": "Uttara Bhadrapada", "pada": 4 }
+    },
+    {
+      "id": "astrosage-michael-jackson",
+      "date": "1958-08-29", "time": "05:30:00", "utcOffsetMinutes": -300, "timeZone": "America/Chicago",
+      "place": { "name": "Gary", "country": "United States", "latitude": 41.5934, "longitude": -87.3464 },
+      "astrosage": { "moonSign": "Aquarius", "moonDms": [14, 27, 59], "moonSignIndex": 10, "nakshatra": "Shatabhisha", "pada": 3 }
+    }
+  ]
+}

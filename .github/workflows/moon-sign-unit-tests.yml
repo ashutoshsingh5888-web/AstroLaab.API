@@ -1,0 +1,41 @@
+name: Moon Sign Unit Tests
+
+on:
+  push:
+    paths:
+      - "workers/moon-sign/**"
+      - ".github/workflows/moon-sign-unit-tests.yml"
+  pull_request:
+    paths:
+      - "workers/moon-sign/**"
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/moon-sign
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"   # needs type stripping (22.18+)
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned reference engine
+        run: python -m pip install --disable-pip-version-check "pyswisseph==2.10.3.2"
+
+      - name: Delta-T fixture is in sync with pyswisseph
+        run: python tests/tools/generate-deltat-fixture.py --check
+
+      - name: Worker unit tests (D9, Whole Sign, delta-T, DST, HTTP layer)
+        run: npm test
+
+      - name: Pada review (AstroSage celebrity cases vs pyswisseph)
+        run: python tests/validate-pada-boundaries.py

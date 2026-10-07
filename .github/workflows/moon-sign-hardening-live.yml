@@ -1,0 +1,41 @@
+name: Moon Sign Hardening (live)
+
+on:
+  schedule:
+    - cron: "30 3 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "workers/moon-sign/**"
+      - ".github/workflows/moon-sign-hardening-live.yml"
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: workers/moon-sign
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install reference engine
+        run: python -m pip install --disable-pip-version-check "pyswisseph==2.10.3.2"
+
+      - name: Wait for live Worker deployment
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/wait-for-deployment.py
+
+      - name: Houses, D9, Whole Sign numbers and API contract
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/validate-chart-hardening.py
+
+      - name: Pada review against the live Worker
+        env:
+          ASTROLAAB_ENDPOINT: https://astrolaab-moon-sign.ashutoshsingh5888.workers.dev/birth-chart
+        run: python tests/validate-pada-boundaries.py

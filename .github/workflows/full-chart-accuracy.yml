@@ -6,6 +6,7 @@ on:
       - "main.py"
       - "engine/**"
       - "requirements.txt"
+      - "tests/test_engine_unit.py"
       - "tests/validate_full_chart.py"
       - "tests/validate_full_chart_platforms.py"
       - "tests/validate_chart_api_contract.py"
@@ -48,10 +49,19 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Compile Python API
         run: python -m compileall -q main.py engine tests
+
+      - name: Engine and API unit tests
+
+        env:
+
+          PYTHONPATH: .
+
+        run: python -m unittest tests/test_engine_unit.py -v
+
 
       - name: API contract
         run: python tests/validate_chart_api_contract_ci.py
