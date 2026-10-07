@@ -18,6 +18,7 @@ import {
   isAllowedOrigin,
   nakshatraPada,
   norm,
+  nutationLongitudeArcsec,
   resolveLocalTime,
   signOf,
   wholeSignCusps,
@@ -80,11 +81,17 @@ function calculate(body: any) {
   const deltaTSeconds = deltaT(decimalYearOf(x));
   const jdTT = jd + deltaTSeconds / 86400;
   const ay = get_ayanamsha(1, jdTT);
+  // The wrapper subtracts the MEAN ayanamsha from true-of-date tropical
+  // positions. Swiss Ephemeris' native sidereal mode (and the Indian ephemeris
+  // convention) uses the TRUE ayanamsha = mean + nutation in longitude, so every
+  // wrapper longitude, the Ascendant and the cusps are corrected by -dpsi.
+  const nutationArcsec = nutationLongitudeArcsec(jdTT);
+  const dpsi = nutationArcsec / 3600;
 
   // calculate_planets() is the wrapper's canonical sidereal path and expects TT.
   const planetsRaw = calculate_planets(jdTT, 1) as any[];
   const basePlanets = planetsRaw.map((p: any) => {
-    const longitude = norm(Number(p.longitude));
+    const longitude = norm(Number(p.longitude) - dpsi);
     return {
       id: Number(p.id), name: p.name, longitude,
       latitude: Number(p.latitude ?? 0), speed: Number(p.speed ?? 0),
@@ -104,12 +111,12 @@ function calculate(body: any) {
     // comes from the wrapper (rejected above 66.5 deg latitude, where Swiss
     // Ephemeris would silently fall back to another system).
     const h = calculate_houses(jd, lat, lon, hs, 1) as any;
-    ascLon = norm(Number(h.ascendant));
+    ascLon = norm(Number(h.ascendant) - dpsi);
     let cuspLongitudes: number[];
     if (hs === "W") cuspLongitudes = wholeSignCusps(ascLon);
     else if (hs === "E") cuspLongitudes = equalCusps(ascLon);
     else {
-      cuspLongitudes = Array.from(h.cusps ?? []).slice(0, 12).map((v: any) => norm(Number(v)));
+      cuspLongitudes = Array.from(h.cusps ?? []).slice(0, 12).map((v: any) => norm(Number(v) - dpsi));
       if (cuspLongitudes.length !== 12) throw new Error("unexpected house cusp count from ephemeris wrapper");
     }
     houses = {
@@ -133,6 +140,8 @@ function calculate(body: any) {
       zodiac: "sidereal",
       ayanamsha: "Lahiri (Chitrapaksha)",
       ayanamshaMode: 1,
+      ayanamshaConvention: "true ayanamsha (mean + nutation in longitude); matches Swiss Ephemeris native sidereal mode",
+      nutationLongitudeArcsec: nutationArcsec,
       nodeType: "mean",
       houseSystem: houses?.system ?? null,
       ephemeris: "Swiss Ephemeris",
@@ -140,7 +149,7 @@ function calculate(body: any) {
       supportedDeltaTYearRange: { min: SUPPORTED_MIN_YEAR, max: SUPPORTED_MAX_YEAR },
       timeScales: { planets: "TT", houses: "UT", ayanamsha: "TT", deltaTSeconds },
     },
-    ayanamsha: { name: "Lahiri (Chitrapaksha)", mode: 1, degrees: Number(ay) },
+    ayanamsha: { name: "Lahiri (Chitrapaksha)", mode: 1, degrees: Number(ay), trueDegrees: Number(ay) + dpsi },
     birth: {
       localDate: body.date, localTime: body.time, timeZone: body.timeZone,
       utcOffsetMinutes: lt.offsetMinutes, utc: x.toISOString(), julianDayUT: jd, julianDayTT: jdTT,
