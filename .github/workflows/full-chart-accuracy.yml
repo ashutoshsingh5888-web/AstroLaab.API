@@ -6,6 +6,8 @@ on:
       - "main.py"
       - "engine/**"
       - "requirements.txt"
+      - "Dockerfile"
+      - ".dockerignore"
       - "tests/test_engine_unit.py"
       - "tests/validate_full_chart.py"
       - "tests/validate_full_chart_platforms.py"
@@ -53,6 +55,9 @@ jobs:
 
       - name: Compile Python API
         run: python -m compileall -q main.py engine tests
+
+      - name: Build production container
+        run: docker build --tag astrolaab-api:ci .
 
       - name: Engine and API unit tests
 
