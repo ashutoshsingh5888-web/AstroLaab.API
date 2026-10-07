@@ -329,3 +329,22 @@ test("CORS allow-list: https only, exact astrolaab.com family", () => {
     assert.equal(core.isAllowedOrigin(o), false, String(o));
   }
 });
+
+// -------------------------------------------------------------- nutation
+const NUT = JSON.parse(readFileSync(new URL("../fixtures/nutation-reference.json", import.meta.url), "utf8"));
+
+test("nutation series: every month 1949-2051 within 0.05 arcsec of swe.calc(ECL_NUT)", () => {
+  let worst = 0;
+  for (const r of NUT.rows) {
+    const err = Math.abs(core.nutationLongitudeArcsec(r.jdTT) - r.dpsi);
+    worst = Math.max(worst, err);
+    assert.ok(err <= 0.05, `jd ${r.jdTT}: ${core.nutationLongitudeArcsec(r.jdTT)} vs ${r.dpsi}`);
+  }
+  assert.ok(worst < 0.03, `worst ${worst}`);
+});
+
+test("nutation series: amplitude is physical (|dpsi| <= 19 arcsec) and anchors match known values", () => {
+  for (const r of NUT.rows) assert.ok(Math.abs(core.nutationLongitudeArcsec(r.jdTT)) <= 19);
+  // 1987-04-10 0h TD (Meeus example 22.a): dpsi = -3.788 arcsec
+  assert.ok(Math.abs(core.nutationLongitudeArcsec(2446895.5) - -3.788) < 0.02);
+});
