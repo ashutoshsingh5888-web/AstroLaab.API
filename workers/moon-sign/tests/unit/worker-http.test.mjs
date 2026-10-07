@@ -24,6 +24,13 @@ async function get(path, { origin = ORIGIN, env } = {}) {
 
 beforeEach(() => { reset(); delete globalThis.caches; });
 
+// The Worker subtracts nutation in longitude (dpsi) from every wrapper longitude, so
+// tests that need an exact output feed the stub "target + dpsi" and read dpsi from the response.
+async function dpsiDeg(over = {}) {
+  const { json } = await post(base(over));
+  return json.calculationProfile.nutationLongitudeArcsec / 3600;
+}
+
 // ------------------------------------------------------------- happy path
 test("birth-chart: response contract is intact (fields other validators rely on)", async () => {
   const { res, json } = await post(base());
@@ -43,13 +50,32 @@ test("birth-chart: response contract is intact (fields other validators rely on)
 });
 
 test("moon sign / nakshatra / pada / navamsa for the stubbed Moon", async () => {
-  globalThis.__stub.moon = 344.3919; // Pisces 14 deg 23', Uttara Bhadrapada pada 4
+  globalThis.__stub.moon = 344.3919 + (await dpsiDeg()); // output Moon = Pisces 14 deg 23', Uttara Bhadrapada pada 4
   const { json } = await post(base());
   assert.equal(json.moon.sign.english, "Pisces");
   assert.equal(json.moon.nakshatra.name, "Uttara Bhadrapada");
   assert.equal(json.moon.nakshatra.pada, 4);
   assert.equal(json.moon.navamsa.english, core.divisionalSign(344.3919, 9).english);
   assert.equal(json.moon.degreeInSignDms.text, "14° 23′ 31″");
+  assert.ok(Math.abs(json.moon.siderealLongitude - 344.3919) < 1e-9);
+});
+
+// ------------------------------------------------- sidereal convention
+test("every longitude, the Ascendant and Placidus cusps are corrected by exactly -dpsi", async () => {
+  globalThis.__stub.moon = 100; globalThis.__stub.sun = 50; globalThis.__stub.asc = 123.456;
+  const { json } = await post(base({ houseSystem: "P" }));
+  const arc = json.calculationProfile.nutationLongitudeArcsec;
+  const d = arc / 3600;
+  // the reported value is the series evaluated at the TT Julian Day the planets were computed for
+  assert.ok(Math.abs(arc - core.nutationLongitudeArcsec(calls.planets[0].jd)) < 1e-12);
+  const byName = Object.fromEntries(json.planets.map((p) => [p.name, p.longitude]));
+  assert.ok(Math.abs(byName.Moon - (100 - d)) < 1e-9);
+  assert.ok(Math.abs(byName.Sun - (50 - d)) < 1e-9);
+  assert.ok(Math.abs(byName.Rahu - (154.5 - d)) < 1e-9);
+  assert.ok(Math.abs(json.houses.cusps[0].longitude - (123.456 - d)) < 1e-9);
+  assert.ok(Math.abs(json.ayanamsha.trueDegrees - (json.ayanamsha.degrees + d)) < 1e-12);
+  assert.match(json.calculationProfile.ayanamshaConvention, /nutation/);
+  assert.ok(Math.abs(arc) <= 19);
 });
 
 // ------------------------------------------------------------ time scales
@@ -79,10 +105,10 @@ test("default house system is Whole Sign; cusps come from the Ascendant, not the
 });
 
 test("Equal houses: cusp 1 is the Ascendant, ignoring wrapper cusps", async () => {
-  globalThis.__stub.asc = 200.25;
+  globalThis.__stub.asc = 200.25 + (await dpsiDeg());
   const { json } = await post(base({ houseSystem: "e" }));
   assert.equal(json.houses.system, "E");
-  assert.equal(json.houses.cusps[0].longitude, 200.25);
+  assert.ok(Math.abs(json.houses.cusps[0].longitude - 200.25) < 1e-9);
   assert.ok(Math.abs(json.houses.cusps[3].longitude - 290.25) < 1e-9);
 });
 
@@ -90,7 +116,8 @@ test("Placidus: wrapper cusps pass through, labelled P, exactly 12", async () =>
   const { json } = await post(base({ houseSystem: "P" }));
   assert.equal(json.houses.system, "P");
   assert.equal(json.houses.cusps.length, 12);
-  assert.ok(Math.abs(json.houses.cusps[1].longitude - (123.456 + 31.5)) < 1e-9);
+  const d = json.calculationProfile.nutationLongitudeArcsec / 3600;
+  assert.ok(Math.abs(json.houses.cusps[1].longitude - (123.456 + 31.5 - d)) < 1e-9, "P cusps carry the nutation correction");
 });
 
 test("Placidus above the polar limit is rejected; Whole Sign and Equal still work there", async () => {
@@ -171,7 +198,7 @@ test("supported range is judged on the local birth year", async () => {
 
 // ---------------------------------------------------------------- warnings
 test("boundary warnings reach the response; legacy boundaryWarning string kept", async () => {
-  globalThis.__stub.moon = 30 - 10 / 3600;
+  globalThis.__stub.moon = 30 - 10 / 3600 + (await dpsiDeg());
   const near = await post(base());
   assert.ok(near.json.warnings.some((w) => w.code === "rashi_boundary"));
   assert.equal(typeof near.json.boundaryWarning, "string");
