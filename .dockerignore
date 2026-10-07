@@ -1,0 +1,14 @@
+.git
+.github
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+tests
+repo-cleanup.sh
+README.md
+*.md
