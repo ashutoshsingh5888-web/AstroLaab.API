@@ -87,6 +87,12 @@ function calculate(body: any) {
   // wrapper longitude, the Ascendant and the cusps are corrected by -dpsi.
   const nutationArcsec = nutationLongitudeArcsec(jdTT);
   const dpsi = nutationArcsec / 3600;
+  // The wrapper subtracts the MEAN ayanamsha from true-of-date tropical
+  // positions. Swiss Ephemeris' native sidereal mode (and the Indian ephemeris
+  // convention) uses the TRUE ayanamsha = mean + nutation in longitude, so every
+  // wrapper longitude, the Ascendant and the cusps are corrected by -dpsi.
+  const nutationArcsec = nutationLongitudeArcsec(jdTT);
+  const dpsi = nutationArcsec / 3600;
 
   // calculate_planets() is the wrapper's canonical sidereal path and expects TT.
   const planetsRaw = calculate_planets(jdTT, 1) as any[];
