@@ -26,7 +26,7 @@ export function calculate_planets(jd, mode) {
   const p = (id, name, longitude, retro = false) => ({ id, name, longitude, latitude: 0, speed: 1, is_retrograde: retro });
   return [
     p(0, "Sun", s.sun), p(1, "Moon", s.moon), p(2, "Mercury", 61), p(3, "Venus", 75),
-    p(4, "Mars", 150), p(5, "Jupiter", 200), p(6, "Saturn", 344.39, true),
+    p(4, "Mars", 155), p(5, "Jupiter", 200), p(6, "Saturn", 344.39, true),
     p(10, "Rahu", 154.5, true), p(11, "Ketu", 334.5, true),
   ];
 }
