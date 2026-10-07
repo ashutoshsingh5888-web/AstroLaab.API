@@ -21,8 +21,15 @@ def build():
 if __name__ == "__main__":
     text = json.dumps(build(), separators=(",", ":")).replace('{"jdTT"', '\n{"jdTT"') + "\n"
     if "--check" in sys.argv:
-        if OUT.read_text() != text:
-            print("nutation-reference.json is out of date; rerun the generator", file=sys.stderr); raise SystemExit(1)
+        try:
+            committed = json.loads(OUT.read_text())
+        except Exception as exc:
+            print(f"nutation-reference.json is invalid: {exc}; rerun the generator", file=sys.stderr)
+            raise SystemExit(1)
+        generated = build()
+        if committed != generated:
+            print("nutation-reference.json data is out of date; rerun the generator", file=sys.stderr)
+            raise SystemExit(1)
         print("nutation-reference.json is up to date")
     else:
         OUT.write_text(text); print(f"wrote {OUT} ({len(text)} bytes)")
