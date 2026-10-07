@@ -128,7 +128,7 @@ def section_houses_d9():
                 # D9 against pyswisseph-derived longitudes (independent of the Worker's positions)
                 jt = jd + swe.deltat(jd)
                 for name, pid in (("Sun", 0), ("Moon", 1), ("Mercury", 2), ("Venus", 3), ("Mars", 4), ("Jupiter", 5), ("Saturn", 6)):
-                    sl = (swe.calc(jt, pid, swe.FLG_MOSEPH)[0][0] - swe.get_ayanamsa(jt)) % 360
+                    sl = swe.calc(jt, pid, swe.FLG_MOSEPH | swe.FLG_SIDEREAL)[0][0] % 360  # Swiss-native sidereal
                     if near_navamsa_edge(sl):
                         continue
                     wp = next(p for p in j["planets"] if p["name"] == name)
