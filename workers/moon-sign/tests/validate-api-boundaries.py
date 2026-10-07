@@ -46,7 +46,7 @@ for label, date, expected_status in CASES:
         ok = ok and body.get("ok") is True and rng == {"min": 1950, "max": 2050}
         print(f"{'PASS' if ok else 'FAIL'} {label}: HTTP {status}, range={rng}")
     else:
-        ok = ok and body.get("ok") is False and "outside supported Delta-T range" in str(body.get("error", ""))
+        ok = ok and body.get("ok") is False and "outside supported range" in str(body.get("error", ""))
         print(f"{'PASS' if ok else 'FAIL'} {label}: HTTP {status}, error={body.get('error')}")
     failures += 0 if ok else 1
 print(f"\nAPI year-boundary contract: {len(CASES)-failures}/{len(CASES)} passed")
