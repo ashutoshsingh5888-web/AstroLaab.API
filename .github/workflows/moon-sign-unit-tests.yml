@@ -34,6 +34,9 @@ jobs:
       - name: Delta-T fixture is in sync with pyswisseph
         run: python tests/tools/generate-deltat-fixture.py --check
 
+      - name: Nutation fixture is in sync with pyswisseph
+        run: python tests/tools/generate-nutation-fixture.py --check
+
       - name: Worker unit tests (D9, Whole Sign, delta-T, DST, HTTP layer)
         run: npm test
 
