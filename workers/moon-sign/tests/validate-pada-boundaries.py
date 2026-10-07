@@ -34,7 +34,7 @@ def swiss_moon(case):
     jd = swe.julday(y, m, d, 0.0) + ut_hours / 24.0
     swe.set_sid_mode(swe.SIDM_LAHIRI)
     jt = jd + swe.deltat(jd)
-    return (swe.calc(jt, swe.MOON, swe.FLG_MOSEPH)[0][0] - swe.get_ayanamsa(jt)) % 360.0
+    return swe.calc(jt, swe.MOON, swe.FLG_MOSEPH | swe.FLG_SIDEREAL)[0][0] % 360.0  # Swiss-native sidereal
 
 
 def worker_moon(endpoint, case):
