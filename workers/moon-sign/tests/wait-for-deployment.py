@@ -24,9 +24,9 @@ for attempt in range(1, 19):
         )
         with urllib.request.urlopen(req, timeout=15) as response:
             body = json.loads(response.read().decode())
-            if response.status == 200 and body.get("ok") is True:
-                profile = body.get("calculationProfile", {})
-                print(f"Deployment ready on attempt {attempt}: HTTP 200")
+            profile = body.get("calculationProfile", {})
+            if response.status == 200 and body.get("ok") is True and "nutationLongitudeArcsec" in profile:
+                print(f"Deployment ready on attempt {attempt}: HTTP 200, nutation build detected")
                 print(f"Swiss Ephemeris: {body.get('swissephVersion')}")
                 print(f"Delta-T range: {profile.get('supportedDeltaTYearRange')}")
                 raise SystemExit(0)
